@@ -1,0 +1,30 @@
+name: Linter
+
+on:
+  push:
+    branches:
+      - "*"
+    branches-ignore:
+      - main
+
+jobs:
+  lint:
+    name: Code Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: pip install black isort
+
+      - name: Run Black
+        run: black --check .
+
+      - name: Run isort
+        run: isort --check-only .
