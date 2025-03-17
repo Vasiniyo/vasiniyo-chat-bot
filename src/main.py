@@ -1,9 +1,11 @@
 import logging
 import random
 
-from config import bot, templates
+from config import init_config
 from constansts import ANDRUXA_TANENBAUM_PHRASES, IS_TANENBAUM
 from likes import add_like, count_likes, fetch_top
+
+bot, templates, chat_id = init_config()
 
 logger = logging.getLogger(__name__)
 
