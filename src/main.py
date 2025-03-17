@@ -13,8 +13,7 @@ def get_user_name(chat_id, user_id):
     return f"{user.first_name} (@{user.username})"
 
 
-def give_warning_to_message_len(message):
-    # TODO сделать выбор из рандомных фраз или стикеров 
+def to_long_message(message):
     bot.reply_to(message, "Многа букав, не осилил!")
 
 
@@ -49,7 +48,7 @@ def reply_text(message):
     user_message = message.text.lower()
 
     if len(user_message) > MAX_MESSAGE_LEN:
-        give_warning_to_message_len()
+        to_long_message(message)
     elif reply := templates["text_to_text"].get(user_message):
         reply = __get_tanenbaum_phrase(user_message)
         bot.reply_to(message, reply)
