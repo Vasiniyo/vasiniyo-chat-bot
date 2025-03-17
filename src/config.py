@@ -3,6 +3,8 @@ import os
 
 import telebot
 
+from constansts import IS_TANENBAUM
+
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] > %(message)s"
 )
@@ -45,6 +47,7 @@ templates = {
         "соер лучший инженер": "и человек хороший",
         "декабрист отличный инженер": "нет, соер",
         "влад мишустин": "лучший буткемп за 500к",
+        IS_TANENBAUM: IS_TANENBAUM,
     },
     "text_to_sticker": {
         "терпи": stickers["терплю"],
