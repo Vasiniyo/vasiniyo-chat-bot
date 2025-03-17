@@ -1,4 +1,4 @@
-# Foobar
+# vasiniyo-chat-bot
 
 `vasiniyo-chat-bot` - телеграм бот, написанный на `pyTelegramBotAPI`
 
