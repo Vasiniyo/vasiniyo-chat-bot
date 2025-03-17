@@ -2,7 +2,7 @@ import logging
 import random
 
 from config import bot, templates
-from constansts import IS_TANENBAUM, ANDRUXA_TANENBAUM_PHRASES, TANENBAUM_RANGE
+from constansts import IS_TANENBAUM, ANDRUXA_TANENBAUM_PHRASES
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ def reply_sticker(message):
 
 def __get_tanenbaum_phrase(message):
     if message == IS_TANENBAUM:
-        return ANDRUXA_TANENBAUM_PHRASES.get(random.randint(*TANENBAUM_RANGE))
+        return random.choice(ANDRUXA_TANENBAUM_PHRASES)
     return message
 
 
