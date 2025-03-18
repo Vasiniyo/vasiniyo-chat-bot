@@ -2,7 +2,7 @@ import logging
 import random
 
 from config import bot, templates
-from constansts import ANDRUXA_TANENBAUM_PHRASES, IS_TANENBAU, MAX_MESSAGE_LEN
+from constansts import ANDRUXA_TANENBAUM_PHRASES, IS_TANENBAUM, MESSAGE_MAX_LEN
 from likes import add_like, count_likes, fetch_top
 
 logger = logging.getLogger(__name__)
