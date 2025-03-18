@@ -13,3 +13,5 @@ ANDRUXA_TANENBAUM_PHRASES = [
 ]
 
 IS_TANENBAUM = "таненбаума давай хули"
+
+MESSAGE_MAX_LEN = 80

@@ -2,7 +2,7 @@ import logging
 import random
 
 from config import bot, templates
-from constansts import ANDRUXA_TANENBAUM_PHRASES, IS_TANENBAUM
+from constansts import ANDRUXA_TANENBAUM_PHRASES, IS_TANENBAU, MAX_MESSAGE_LEN
 from likes import add_like, count_likes, fetch_top
 
 logger = logging.getLogger(__name__)
@@ -11,6 +11,10 @@ logger = logging.getLogger(__name__)
 def get_user_name(chat_id, user_id):
     user = bot.get_chat_member(chat_id, user_id).user
     return f"{user.first_name} (@{user.username})"
+
+
+def to_long_message(message):
+    bot.reply_to(message, "Многа букав, не осилил!")
 
 
 @bot.message_handler(commands=["top"])
@@ -42,7 +46,10 @@ def handle_like(message):
 @bot.message_handler(func=lambda message: True)
 def reply_text(message):
     user_message = message.text.lower()
-    if reply := templates["text_to_text"].get(user_message):
+
+    if len(user_message) > MAX_MESSAGE_LEN:
+        to_long_message(message)
+    elif reply := templates["text_to_text"].get(user_message):
         reply = __get_tanenbaum_phrase(user_message)
         bot.reply_to(message, reply)
     elif sticker_file_id := templates["text_to_sticker"].get(user_message):
