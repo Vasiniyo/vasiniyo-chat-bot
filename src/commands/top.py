@@ -3,8 +3,6 @@ from likes import fetch_top
 
 
 def handle_top(message):
-    chat_id = message.chat.id
-    top_data = fetch_top(chat_id, 10)
 
     def get_user_name(chat_id, user_id):
         user = bot.get_chat_member(chat_id, user_id).user
@@ -14,4 +12,4 @@ def handle_top(message):
         f"{position + 1}. {get_user_name(message.chat.id, user_id)} — {count}"
         for position, (user_id, count) in enumerate(fetch_top(message.chat.id, 10))
     )
-    bot.reply_to(message, f"🏆test Топ по лайкам:\n{top_message}")
+    bot.reply_to(message, f"🏆 Топ по лайкам:\n{top_message}")
