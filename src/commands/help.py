@@ -8,3 +8,7 @@ def handle_help(message):
         f"/{cmd} - {desc}" for cmd, (_, desc) in COMMANDS.items()
     )
     bot.reply_to(message, help_text)
+
+
+def handle_unknown(message):
+    bot.reply_to(message, "🤷 Неизвестная команда. Введите /help.")
