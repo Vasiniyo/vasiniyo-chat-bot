@@ -3,7 +3,7 @@ import os
 
 import telebot
 
-from constansts import IS_TANENBAUM
+from constants import IS_TANENBAUM
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] > %(message)s"
