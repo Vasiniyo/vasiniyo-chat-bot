@@ -45,12 +45,10 @@ def fetch_top(chat_id, limit):
 def add_like(chat_id, from_user_id, to_user_id):
     commit_query(
         """
-        update likes 
-        set to_user_id = ?
-        where chat_id = ?
-        and from_user_id = ?
+        insert into likes (chat_id, from_user_id, to_user_id) values (?, ?, ?)
+        on conflict (chat_id, from_user_id) do update set to_user_id = ?
         """,
-        (to_user_id, chat_id, from_user_id),
+        (chat_id, from_user_id, to_user_id, to_user_id),
     )
 
 
