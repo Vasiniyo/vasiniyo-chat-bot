@@ -47,7 +47,7 @@ def handle_like(message):
 def reply_text(message):
     user_message = message.text.lower()
 
-    if len(user_message) > MAX_MESSAGE_LEN:
+    if len(user_message) > MESSAGE_MAX_LEN:
         to_long_message(message)
     elif reply := templates["text_to_text"].get(user_message):
         reply = __get_tanenbaum_phrase(user_message)
