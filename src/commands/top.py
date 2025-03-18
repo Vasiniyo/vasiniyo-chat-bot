@@ -3,8 +3,6 @@ from likes import fetch_top
 
 
 def handle_top(message):
-    chat_id = message.chat.id
-    top_data = fetch_top(chat_id, 10)
 
     def get_user_name(chat_id, user_id):
         user = bot.get_chat_member(chat_id, user_id).user
