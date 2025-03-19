@@ -10,7 +10,8 @@ def handle_text(message):
     if len(user_message) > MESSAGE_MAX_LEN:
         __to_long_message(message)
     elif reply := templates["text_to_text"].get(user_message):
-        reply = __get_tanenbaum_phrase(user_message)
+        if user_message == IS_TANENBAUM:
+            reply = random.choice(ANDRUXA_TANENBAUM_PHRASES)
         bot.reply_to(message, reply)
     elif sticker_file_id := templates["text_to_sticker"].get(user_message):
         bot.send_sticker(
@@ -20,9 +21,3 @@ def handle_text(message):
 
 def __to_long_message(message):
     bot.reply_to(message, "Многа букав, не осилил!")
-
-
-def __get_tanenbaum_phrase(message):
-    if message == IS_TANENBAUM:
-        return random.choice(ANDRUXA_TANENBAUM_PHRASES)
-    return message
