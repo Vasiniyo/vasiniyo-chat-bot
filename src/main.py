@@ -26,4 +26,5 @@ bot.message_handler(content_types=["sticker"])(handle_stickers)
 
 if __name__ == "__main__":
     logger.info("Bot started")
+    bot.delete_webhook(drop_pending_updates=True)
     bot.polling()
