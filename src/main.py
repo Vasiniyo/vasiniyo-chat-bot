@@ -1,12 +1,10 @@
 import logging
-import random
 
 from commands.dispatcher import COMMANDS
 from commands.help import handle_unknown
 from commands.stickers import handle_stickers
 from commands.text import handle_text
-from commands.top import handle_top
-from config import bot, templates
+from config import bot
 
 logger = logging.getLogger(__name__)
 

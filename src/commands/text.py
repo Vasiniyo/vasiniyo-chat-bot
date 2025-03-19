@@ -15,12 +15,14 @@ def handle_text(message):
 
     found, matched_key, used_inverted = test_match(user_message, "text_to_text")
     if found:
-        reply = templates["text_to_text"].get(matched_key)
+        if matched_key == IS_TANENBAUM:
+            reply = random.choice(ANDRUXA_TANENBAUM_PHRASES)
+        else:
+            reply = templates["text_to_text"].get(matched_key)
+
         if used_inverted:
             reply = f"(Вы имели в виду: {matched_key}?)\n{reply}"
 
-        if matched_key == IS_TANENBAUM:
-            reply = random.choice(ANDRUXA_TANENBAUM_PHRASES)
         bot.reply_to(message, reply)
         return
 
@@ -38,9 +40,3 @@ def handle_text(message):
 
 def __to_long_message(message):
     bot.reply_to(message, "Многа букав, не осилил!")
-
-
-def __get_tanenbaum_phrase(message):
-    if message == IS_TANENBAUM:
-        return random.choice(ANDRUXA_TANENBAUM_PHRASES)
-    return message
