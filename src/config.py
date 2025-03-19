@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 
 import telebot
 
@@ -38,14 +39,40 @@ stickers = {
     for sticker_name in unique_file_id.keys()
 }
 
+categories = {"good": ["хороший", "отличный"]}
+
+
+def expand_pattern(pattern: str, categories: dict) -> list:
+    regex = r"\{(\w+)\}"
+    match = re.search(regex, pattern)
+    if not match:
+        return [pattern]
+    category = match.group(1)
+    if category not in categories:
+        return [pattern]
+    results = []
+    for variant in categories[category]:
+        new_pattern = pattern[: match.start()] + variant + pattern[match.end() :]
+        results.extend(expand_pattern(new_pattern, categories))
+    return results
+
+
+def expand_templates(template_dict: dict, categories: dict) -> dict:
+    expanded = {}
+    for pattern, response in template_dict.items():
+        for new_pattern in expand_pattern(pattern, categories):
+            expanded[new_pattern] = response
+    return expanded
+
+
 templates = {
     "sticker_to_sticker": {
         stickers["терпи"]: stickers["терплю"],
         stickers["накидывай"]: stickers["накидывай"],
     },
     "text_to_text": {
-        "соер лучший инженер": "и человек хороший",
-        "декабрист отличный инженер": "нет, соер",
+        "соер {good} инженер": "и человек хороший",
+        "декабрист {good} инженер": "нет, соер",
         "влад мишустин": "лучший буткемп за 500к",
         IS_TANENBAUM: IS_TANENBAUM,
     },
@@ -54,3 +81,5 @@ templates = {
         "накидывай накидывай": stickers["накидывай"],
     },
 }
+
+templates["text_to_text"] = expand_templates(templates["text_to_text"], categories)
