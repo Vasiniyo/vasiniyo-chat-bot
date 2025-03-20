@@ -11,14 +11,13 @@ logging.basicConfig(
 )
 
 api_token = os.environ.get("BOT_API_TOKEN")
-chat_id = os.environ.get("ACCESS_ID_GROUP")
+
+allowed_chats = os.environ.get("ACCESS_ID_GROUP", "*").split(";")
+if len(allowed_chats) == 1 and allowed_chats[0] == "":
+    allowed_chats.append("*")
 
 if not api_token:
     print("BOT_API_TOKEN is not set")
-    exit(1)
-
-if not chat_id:
-    print("ACCESS_ID_GROUP is not set")
     exit(1)
 
 bot = telebot.TeleBot(api_token)
