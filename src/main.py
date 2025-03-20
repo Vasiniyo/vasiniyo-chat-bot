@@ -4,12 +4,16 @@ from commands.dispatcher import COMMANDS
 from commands.help import handle_unknown
 from commands.stickers import handle_stickers
 from commands.text import handle_text
-from config import bot
+from config import allowed_chats, bot
 
 logger = logging.getLogger(__name__)
 
 
-@bot.message_handler(commands=list(COMMANDS.keys()))
+def in_allowed_chat(message):
+    return "*" in allowed_chats or str(message.chat.id) in allowed_chats
+
+
+@bot.message_handler(func=in_allowed_chat, commands=list(COMMANDS.keys()))
 def handle_command(message):
     command_text = message.text.lstrip("/")
     command_name = command_text.split()[0].split("@")[0]
@@ -21,8 +25,8 @@ def handle_command(message):
         handle_unknown(message)
 
 
-bot.message_handler(func=lambda m: True)(handle_text)
-bot.message_handler(content_types=["sticker"])(handle_stickers)
+bot.message_handler(func=in_allowed_chat)(handle_text)
+bot.message_handler(func=in_allowed_chat, content_types=["sticker"])(handle_stickers)
 
 if __name__ == "__main__":
     logger.info("Bot started")
