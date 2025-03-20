@@ -19,7 +19,7 @@ def find_best_match(input_text: str, templates: dict, simmilarity=80):
 
 def test_match(user_message: str, category: str):
     """
-    Returns (True, key, is_inverted) if found, otherwise (False, None, False).
+    Returns (key, is_inverted) if found, otherwise (None, False).
     """
     inverted_user_message = __convert_layout(user_message)
 
@@ -27,11 +27,10 @@ def test_match(user_message: str, category: str):
     matched_inverted = find_best_match(inverted_user_message, templates[category])
 
     if matched_original and matched_original in templates[category]:
-        return True, matched_original, False
+        return matched_original, False
     elif matched_inverted and matched_inverted in templates[category]:
-        return True, matched_inverted, True
-
-    return False, None, False
+        return matched_inverted, True
+    return None, False
 
 
 def __convert_layout(text: str) -> str:
