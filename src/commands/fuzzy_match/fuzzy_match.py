@@ -1,37 +1,34 @@
 from rapidfuzz import fuzz, process
 
-from config import templates
 
-from .layout_maps import LAYOUT_MAP
-
-
-def find_best_match(input_text: str, templates: dict, simmilarity=80):
-    if not input_text or not templates:
-        return None
-
-    result = process.extractOne(input_text, templates.keys(), scorer=fuzz.ratio)
-    if result:
+def find_best_match(input_text: str, category_keys: list, simmilarity=80):
+    if result := process.extractOne(input_text, category_keys, scorer=fuzz.ratio):
         best_match, score, _ = result
         if score >= (simmilarity):
             return best_match
     return input_text
 
 
-def test_match(user_message: str, category: str):
+def test_match(user_message: str, category_keys: list):
     """
     Returns (key, is_inverted) if found, otherwise (None, False).
     """
-    inverted_user_message = __convert_layout(user_message)
-
-    matched_original = find_best_match(user_message, templates[category])
-    matched_inverted = find_best_match(inverted_user_message, templates[category])
-
-    if matched_original and matched_original in templates[category]:
-        return matched_original, False
-    elif matched_inverted and matched_inverted in templates[category]:
-        return matched_inverted, True
-    return None, False
+    user_message = user_message.lower()
+    lower_category_keys = list(map(lambda k: k.lower(), category_keys))
+    matched = [
+        (find_best_match(user_message, lower_category_keys), False),
+        (find_best_match(__convert_layout(user_message), lower_category_keys), True),
+    ]
+    return next(filter(lambda m: m[0] in lower_category_keys, matched), (None, False))
 
 
 def __convert_layout(text: str) -> str:
     return "".join(LAYOUT_MAP.get(char, char) for char in text)
+
+
+LAYOUT_MAP = dict(
+    zip(
+        "qwertyuiopasdfghjklzxcvbnmйцукенгшщзфывапролдячсмить",
+        "йцукенгшщзфывапролдячсмитьqwertyuiopasdfghjklzxcvbnm",
+    )
+)
