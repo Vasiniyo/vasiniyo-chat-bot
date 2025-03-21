@@ -11,4 +11,4 @@ def handle_help(message):
 
 
 def handle_unknown(message):
-    bot.reply_to(message, "🤷 Неизвестная команда. Введите /help.")
+    bot.reply_to(message, "🤯 Я такой команды не знаю! Введите /help")
