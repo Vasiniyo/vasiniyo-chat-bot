@@ -1,7 +1,9 @@
+from commands.log_decorator import log_handler
 from config import bot
 from likes import add_like, count_likes
 
 
+@log_handler
 def handle_like(message):
     if reply_to_message := message.reply_to_message:
         from_user = message.from_user
@@ -14,5 +16,5 @@ def handle_like(message):
     else:
         bot.reply_to(
             message,
-            "🤯 Я не понимаю кому ставить лайк, отправь его ответом на сообщение что ли...",
+            "🤯 Я не понимаю, кому ставить лайк, отправь его ответом на сообщение что ли...",
         )
