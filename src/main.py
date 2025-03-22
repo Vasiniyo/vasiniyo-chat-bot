@@ -1,9 +1,6 @@
 import logging
 
-from commands.dispatcher import COMMANDS
-from commands.help import handle_unknown
-from commands.stickers import handle_stickers
-from commands.text import handle_text
+from commands.dispatcher import handlers
 from config import bot
 
 logging.basicConfig(
