@@ -2,89 +2,61 @@ import logging
 import os
 
 import telebot
+import toml
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] > %(message)s"
 )
 
-api_token = os.environ.get("BOT_API_TOKEN")
-
 allowed_chats = os.environ.get("ACCESS_ID_GROUP", "*").split(";")
 if len(allowed_chats) == 1 and allowed_chats[0] == "":
     allowed_chats.append("*")
 
+api_token = os.environ.get("BOT_API_TOKEN")
 if not api_token:
     print("BOT_API_TOKEN is not set")
     exit(1)
-
 bot = telebot.TeleBot(api_token)
-
-unique_file_id = {
-    "терпи": "AgADcG4AAiWZuUk",
-    "терплю": "AgADw3sAAo8vuUk",
-    "накидывай": "AgADumAAAk4okUk",
-}
 
 decembrist_stickers = {
     sticker.file_unique_id: sticker.file_id
     for sticker in bot.get_sticker_set("ExneskoroSticky").stickers
 }
 
+config = toml.load("config.toml")
+
 stickers = {
-    sticker_name: decembrist_stickers.get(unique_file_id.get(sticker_name))
-    for sticker_name in unique_file_id.keys()
+    sticker_name: decembrist_stickers.get(unique_file_id)
+    for sticker_name, unique_file_id in config.get("unique_file_id").items()
 }
 
-categories = {"good": ["хороший", "отличный"]}
-MESSAGE_MAX_LEN = 80
+to_list = lambda func: lambda value: (
+    list(map(lambda v: func(v), value if isinstance(value, list) else [value]))
+)
+
+to_sticker_list = lambda value: to_list(lambda v: stickers[v])(value)
 
 
 def expand_templates(template_dict: dict) -> dict:
     return {
-        req.replace(f"{{{category[0]}}}", value): res
+        req.replace(f"{{{category[0]}}}", value): to_list(lambda x: x)(res)
         for req, res in template_dict.items()
-        for category in categories.items()
+        for category in config.get("categories").items()
         for value in category[1]
     }
 
 
 templates = {
     "sticker_to_sticker": {
-        stickers["терпи"]: [stickers["терплю"]],
-        stickers["терплю"]: [stickers["терпи"]],
-        stickers["накидывай"]: [stickers["накидывай"]],
+        stickers[key]: to_sticker_list(value)
+        for key, value in config.get("sticker_to_sticker").items()
     },
-    "text_to_text": expand_templates(
-        {
-            "соер {good} инженер": ["и человек хороший"],
-            "декабрист {good} инженер": ["нет, соер"],
-            "влад мишустин": ["лучший буткемп за 500к"],
-            "таненбаума давай хули": [
-                "Что хорошо в стандартах, так это то, что у вас всегда есть из чего выбрать. \n\n - Компьютерные сети",
-                "Вероятно, такая ситуация сложилась из-за ошибки одного из программистов BIOS, который писай свой шедевр на ассемблере 8088.\n\n - Архитектура компьютера",
-                "В компьютерной отрасли трудно подобрать название, которое бы не выглядело смешно 30 лет спустя.\n\n - Архитектура компьютера",
-                "Демон - служебная программа в некоторых операционных системах (преимущественно основанных на UNIX), работающая в фоновом режиме без непосредственного взаимодействия с пользователем.\n\n - Современные операционные системы",
-                "Голодание (зависание процесса) - ситуация, когда все программы бесконечно работают, но не могут добиться никакого прогресса.\n\n - Современные операционные системы",
-                "Самые быстрые блокировки - отсутствие всяких блокировок.\n\n - Современные операционные системы",
-                "Рецепт - это программа (алгоритм, выраженный в некой удобной форме записи), программист - центральный процессор, ингредиенты - входные данные, процесс - действия, состоящие из чтения рецепта, выпечки...\n\n - Современные операционные системы",
-                "Авторы этой книги предсказывают, что конец цивилизации произойдет в полночь 31 декабря 9999 года, когда сразу уничтожатся все программы, написанные за 8000 лет на языке COBOL.\n\n - Архитектура компьютера",
-                "В компьютерной отрасли трудно подобрать название, которое бы не выглядело смешно 30 лет спустя.\n\n - Архитектура компьютера",
-                "Исторически использовали и развивали искусство криптографии представители четырех профессий: военные, дипломатический корпус, люди, ведущие дневник, и любовники.",
-                "Боб не знает закрытого ключа Алисы, следовательно, получить зашифрованное этим ключом сообщение он мог только от Алисы. Сидя в тюрьме за лжесвидетельство и мошенничество, Алиса сможет заняться разработкой новых интересных алгоритмов с открытым ключом.",
-                "Аудио-компакт-диски содержат звуковой сигнал, оцифрованный с частотой дискретизации 44 100 Гц, в результате чего они могут хранить звуки с частотами до 22 кГц, что воспринимается как достаточно качественный звук людьми, но считается весьма низким качеством среди собак, ценящих хорошую музыку.\n\n - Компьютерные сети",
-                "Проект был назван Bluetooth («Синий зуб») в честь великого короля викингов по имени Гаральд Синий Зуб II (940—981), который объединил (читай, завоевал) Данию и Норвегию. Ну да, он тоже сделал это без помощи проводов.",
-                "В Unix-системах есть команда - nice, позволяющая пользователю добровольно снизить приоритет свое процесса, чтобы угодить другим пользователям, но ею никто никогда не пользуется.",
-            ],
-        }
-    ),
     "text_to_sticker": {
-        "терпи": [stickers["терплю"]],
-        "терплю": [stickers["терпи"]],
-        "накидывай накидывай": [stickers["накидывай"]],
+        key: to_sticker_list(value)
+        for key, value in config.get("text_to_sticker").items()
     },
-    "long_message": [
-        "Многа букав, не осилила!",
-        "Можно покороче? А то лень читать))0)",
-        "Ты тратишь мое время! Перескажи в двух словах!",
-    ],
+    "text_to_text": expand_templates(config.get("text_to_text")),
+    "long_message": config.get("long_message").get("long_message"),
 }
+
+MESSAGE_MAX_LEN = config.get("long_message").get("message_max_len")
