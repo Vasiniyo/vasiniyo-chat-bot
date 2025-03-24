@@ -1,4 +1,4 @@
-from commands.help import handle_help, handle_unknown
+from commands.help import handle_help, handle_inline_help, handle_unknown
 from commands.like import handle_like
 from commands.stickers import handle_stickers
 from commands.text import handle_long, handle_text_to_sticker, handle_text_to_text
@@ -13,7 +13,7 @@ at = lambda l: lambda n: l[n] if n < len(l) else None
 in_allowed_chat = lambda m: any(["*" in allowed_chats, str(m.chat.id) in allowed_chats])
 cmd_name = lambda m: head(split_cmd(m))
 split_cmd = lambda m: head(m.text.lstrip("/").split()).split("@")
-is_cmd_for_bot = lambda c: any([len(c) == 1, at(c)(1) == bot.get_me().username])
+is_cmd_for_bot = lambda c: any([at(c)(1) is None, is_bot_username(c)])
 is_bot_username = lambda c: at(c)(1) == bot.get_me().username
 unknown_cmd = lambda c: all([is_bot_username(c), head(c) not in list(COMMANDS.keys())])
 
@@ -47,3 +47,5 @@ handlers = {
         "content_types": ["sticker"],
     },
 }
+
+inline_handlers = {handle_inline_help: {lambda query: query.query == ""}}
