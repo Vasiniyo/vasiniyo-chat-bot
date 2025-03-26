@@ -25,6 +25,8 @@ decembrist_stickers = {
 
 config = toml.load("config.toml")
 
+captcha_properties = config.get("captcha_properties")
+
 stickers = {
     sticker_name: decembrist_stickers.get(unique_file_id)
     for sticker_name, unique_file_id in config.get("unique_file_id").items()

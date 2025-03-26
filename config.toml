@@ -6,6 +6,13 @@
 [categories]
 good = ["хороший", "отличный", "лучший"]
 
+[captcha_properties]
+"length" = 5
+"timer" = 60
+"update_freq" = 10
+"attempts" = 3
+"bar_length" = 20
+
 [sticker_to_sticker]
 "терпи" = ["терплю"]
 "терплю" = "терпи"

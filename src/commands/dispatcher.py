@@ -1,3 +1,4 @@
+from commands.captcha import CAPTCHA_USERS, handle_new_user, handle_verify_captcha
 from commands.help import handle_help, handle_inline_help, handle_unknown
 from commands.like import handle_like
 from commands.stickers import handle_stickers
@@ -31,6 +32,11 @@ COMMANDS = {
 
 handle_cmd = lambda m: head(COMMANDS[cmd_name(m)])(m)
 handlers = {
+    handle_new_user: {
+        "func": lambda m: bool(getattr(m, "new_chat_members", None)),
+        "content_types": ["new_chat_members"],
+    },
+    handle_verify_captcha: {"func": lambda m: m.from_user.id in CAPTCHA_USERS},
     handle_cmd: {"func": chat_ok(cmd_ok), "commands": list(COMMANDS.keys())},
     handle_unknown: {"func": chat_ok(cmd_no_ok)},
     handle_long(templates["long_message"]): {
@@ -46,6 +52,15 @@ handlers = {
         "func": chat_ok(sticker_ok("sticker_to_sticker")),
         "content_types": ["sticker"],
     },
+    handle_new_user: {
+        "func": lambda m: bool(getattr(m, "new_chat_members", None)),
+        "content_types": ["new_chat_members"],
+    },
+    handle_verify_captcha: {"func": lambda m: m.from_user.id in CAPTCHA_USERS},
+    handle_long: {"func": chat_ok(lambda m: len(m.text) > MESSAGE_MAX_LEN)},
+    handle_text_to_sticker: {"func": chat_ok(message_ok("text_to_sticker"))},
+    handle_text_to_text: {"func": chat_ok(message_ok("text_to_text"))},
+    handle_stickers: {"func": in_allowed_chat, "content_types": ["sticker"]},
 }
 
 inline_handlers = {handle_inline_help: {lambda query: query.query == ""}}
