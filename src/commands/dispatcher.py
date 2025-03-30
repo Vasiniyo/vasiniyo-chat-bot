@@ -1,4 +1,9 @@
-from commands.captcha import CAPTCHA_USERS, handle_new_user, handle_verify_captcha
+from captcha_manager import (
+    CAPTCHA_USERS,
+    handle_new_user,
+    handle_user_left,
+    handle_verify_captcha,
+)
 from commands.help import handle_help, handle_inline_help, handle_unknown
 from commands.like import handle_like
 from commands.stickers import handle_stickers
@@ -37,6 +42,10 @@ handlers = {
         "content_types": ["new_chat_members"],
     },
     handle_verify_captcha: {"func": lambda m: m.from_user.id in CAPTCHA_USERS},
+    handle_user_left: {
+        "func": lambda m: bool(getattr(m, "left_chat_member", None)),
+        "content_types": ["left_chat_member"],
+    },
     handle_cmd: {"func": chat_ok(cmd_ok), "commands": list(COMMANDS.keys())},
     handle_unknown: {"func": chat_ok(cmd_no_ok)},
     handle_long(templates["long_message"]): {
