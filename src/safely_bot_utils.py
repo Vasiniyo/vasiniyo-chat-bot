@@ -2,6 +2,8 @@ import asyncio
 import logging
 import threading
 
+from telebot.types import LinkPreviewOptions
+
 from config import bot
 from logger import logger
 
@@ -51,6 +53,24 @@ edit_message_reply_markup = lambda m: (
 )
 
 reply_to = lambda t, **kwargs: lambda m: do_action(bot.reply_to)(m, t, **kwargs)
+
+reply_with_user_links = lambda text: reply_to(
+    text,
+    parse_mode="Markdown",
+    disable_notification=True,
+    link_preview_options=LinkPreviewOptions(is_disabled=True),
+)
+
+
+def to_link_user(user):
+    if not (user.username is None):
+        return f"{user.first_name} ([{user.username}](t.me/{user.username}))"
+    return f"[{user.first_name}](tg://user?id={user.id})"
+
+
+get_chat_member = lambda chat_id, user_id: (
+    do_action(bot.get_chat_member)(chat_id, user_id)
+)
 
 answer_callback_query = lambda t: lambda c: (
     do_action(bot.answer_callback_query)(c.id, text=t)

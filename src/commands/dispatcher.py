@@ -5,9 +5,10 @@ from captcha_manager import (
     handle_verify_captcha,
 )
 from commands.drink_or_not import handle_drink_or_not
+from commands.event import play, send_players
 from commands.help import handle_help, handle_inline_help, handle_unknown
 from commands.like import handle_like
-from commands.roll_custom_title import handle_title_change_attempt, prepare_game
+from commands.roll_custom_title import handle_title_change_attempt, prepare_game, start
 from commands.stickers import handle_stickers
 from commands.text import handle_long, handle_text_to_sticker, handle_text_to_text
 from commands.top import handle_top
@@ -36,7 +37,10 @@ COMMANDS = {
     "top": (handle_top, "Показывает топ пользователей по лайкам."),
     "like": (handle_like, "Ставит лайк сообщению, на которое вы ответили."),
     "rename": (prepare_game, "Ставит случайную лычку."),
+    "reg": (start, "Ставит случайную лычку и даёт право участия в ежедневных ивентах."),
     "drink_or_not": (handle_drink_or_not, "Говорит пить сегодня или нет."),
+    "players": (send_players, "Выводит список участников ивентов."),
+    "play": (play, "Выбирает эспера дня."),
 }
 
 handle_cmd = lambda m: head(COMMANDS[cmd_name(m)])(m)
