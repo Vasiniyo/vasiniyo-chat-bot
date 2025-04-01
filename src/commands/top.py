@@ -1,7 +1,7 @@
 from telebot.types import LinkPreviewOptions
 
 from config import bot
-from likes import fetch_top
+from database.likes import fetch_top
 
 
 def handle_top(message):

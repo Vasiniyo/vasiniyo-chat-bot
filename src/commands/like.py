@@ -1,5 +1,5 @@
 from config import bot
-from likes import add_like, count_likes
+from database.likes import add_like, count_likes
 
 
 def handle_like(message):
