@@ -6,6 +6,7 @@ from config import adjectives, nouns
 from database.titles import commit_dice_roll, is_day_passed
 import safely_bot_utils as bot
 
+already_registered = bot.reply_to("Я тебя уже зарегистрировала!")
 cant_roll = lambda func: func("Ты сегодня уже роллял лычку!")
 no_perms = lambda func: func("У меня нет прав, чтобы изменить твою лычку!")
 guessed = lambda func: lambda t: func(f"Изменила твою лычку на {t}!")
@@ -47,6 +48,17 @@ def handle_cant_roll(callback, user_id, message):
     else:
         cant_roll(callback)(message)
     return True
+
+
+def start(message):
+    chat_id = message.chat.id
+    user_id = message.from_user.id
+    if is_day_passed(chat_id, user_id) is not None:
+        return already_registered(message)
+    if not perms_ok(chat_id, user_id):
+        return no_perms(bot.reply_to)(message)
+    commit_dice_roll(chat_id, user_id)
+    return set_random_title(bot.reply_to, chat_id, user_id)(message)
 
 
 def prepare_game(msg):
