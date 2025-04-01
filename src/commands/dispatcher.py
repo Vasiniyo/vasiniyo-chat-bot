@@ -4,6 +4,7 @@ from captcha_manager import (
     handle_user_left,
     handle_verify_captcha,
 )
+from commands.drink_or_not import handle_drink_or_not
 from commands.help import handle_help, handle_inline_help, handle_unknown
 from commands.like import handle_like
 from commands.roll_custom_title import handle_title_change_attempt, prepare_game
@@ -34,7 +35,8 @@ COMMANDS = {
     "help": (handle_help, "Выводит список доступных команд и их описание."),
     "top": (handle_top, "Показывает топ пользователей по лайкам."),
     "like": (handle_like, "Ставит лайк сообщению, на которое вы ответили."),
-    "rename": (prepare_game, "Ставит случайную лычку"),
+    "rename": (prepare_game, "Ставит случайную лычку."),
+    "drink_or_not": (handle_drink_or_not, "Говорит пить сегодня или нет."),
 }
 
 handle_cmd = lambda m: head(COMMANDS[cmd_name(m)])(m)

@@ -65,3 +65,5 @@ MESSAGE_MAX_LEN = config.get("long_message").get("message_max_len")
 
 adjectives = config.get("custom-titles").get("adjectives")
 nouns = config.get("custom-titles").get("nouns")
+
+drinks = config.get("drink-or-not")
