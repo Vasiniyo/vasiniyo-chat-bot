@@ -6,6 +6,7 @@ from captcha_manager import (
 )
 from commands.help import handle_help, handle_inline_help, handle_unknown
 from commands.like import handle_like
+from commands.roll_custom_title import handle_title_change_attempt, prepare_game
 from commands.stickers import handle_stickers
 from commands.text import handle_long, handle_text_to_sticker, handle_text_to_text
 from commands.top import handle_top
@@ -33,19 +34,11 @@ COMMANDS = {
     "help": (handle_help, "Выводит список доступных команд и их описание."),
     "top": (handle_top, "Показывает топ пользователей по лайкам."),
     "like": (handle_like, "Ставит лайк сообщению, на которое вы ответили."),
+    "rename": (prepare_game, "Ставит случайную лычку"),
 }
 
 handle_cmd = lambda m: head(COMMANDS[cmd_name(m)])(m)
 handlers = {
-    handle_new_user: {
-        "func": lambda m: bool(getattr(m, "new_chat_members", None)),
-        "content_types": ["new_chat_members"],
-    },
-    handle_verify_captcha: {"func": lambda m: m.from_user.id in CAPTCHA_USERS},
-    handle_user_left: {
-        "func": lambda m: bool(getattr(m, "left_chat_member", None)),
-        "content_types": ["left_chat_member"],
-    },
     handle_cmd: {"func": chat_ok(cmd_ok), "commands": list(COMMANDS.keys())},
     handle_unknown: {"func": chat_ok(cmd_no_ok)},
     handle_long(templates["long_message"]): {
@@ -73,3 +66,9 @@ handlers = {
 }
 
 inline_handlers = {handle_inline_help: {lambda query: query.query == ""}}
+
+query_handlers = {
+    handle_title_change_attempt: {
+        "func": lambda call: chat_ok(call.message) and call.data.startswith("number_")
+    }
+}

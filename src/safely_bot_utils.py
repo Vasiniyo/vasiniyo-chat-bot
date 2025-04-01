@@ -1,0 +1,76 @@
+import asyncio
+import logging
+import threading
+
+from config import bot
+from logger import logger
+
+
+def start_loop():
+    asyncio.set_event_loop(loop)
+    loop.run_forever()
+
+
+def do_action(func):
+    def wrapper(*args, **kwargs):
+        try:
+            return logger(func)(*args, **kwargs)
+        except Exception as e:
+            logging.exception(e)
+            return None
+
+    return wrapper
+
+
+@logger
+def delete_message_later(message, delay=10):
+    async def delete_message():
+        await asyncio.sleep(delay)
+        do_action(bot.delete_message)(message.chat.id, message.message_id)
+
+    asyncio.run_coroutine_threadsafe(delete_message(), loop)
+
+
+@logger
+def edit_message_text_later(text, **kwargs):
+    async def edit_message(message, delay):
+        await asyncio.sleep(delay)
+        return edit_message_text(text, **kwargs)(message)
+
+    return lambda m, delay=5: asyncio.run_coroutine_threadsafe(
+        edit_message(m, delay), loop
+    )
+
+
+edit_message_text = lambda text, **kwargs: lambda m: (
+    do_action(bot.edit_message_text)(text, m.chat.id, m.message_id, **kwargs)
+)
+
+edit_message_reply_markup = lambda m: (
+    bot.edit_message_reply_markup(m.chat.id, m.message_id, reply_markup=None)
+)
+
+reply_to = lambda t, **kwargs: lambda m: do_action(bot.reply_to)(m, t, **kwargs)
+
+answer_callback_query = lambda t: lambda c: (
+    do_action(bot.answer_callback_query)(c.id, text=t)
+)
+
+get_chat_administrators = lambda chat_id: (
+    do_action(bot.get_chat_administrators)(chat_id)
+)
+
+set_chat_administrator_custom_title = lambda chat_id, user_id, title: (
+    do_action(bot.set_chat_administrator_custom_title)(chat_id, user_id, title)
+)
+
+promote_chat_member = lambda chat_id, user_id, **kwargs: (
+    do_action(bot.promote_chat_member)(chat_id, user_id, **kwargs)
+)
+
+send_dice = lambda m: (
+    do_action(bot.send_dice)(m.chat.id, reply_to_message_id=m.message_id, emoji="🎲")
+)
+
+loop = asyncio.new_event_loop()
+threading.Thread(target=start_loop, daemon=True).start()
