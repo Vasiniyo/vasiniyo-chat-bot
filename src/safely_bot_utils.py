@@ -92,5 +92,7 @@ send_dice = lambda m: (
     do_action(bot.send_dice)(m.chat.id, reply_to_message_id=m.message_id, emoji="🎲")
 )
 
+get_me = do_action(bot.get_me)
+
 loop = asyncio.new_event_loop()
 threading.Thread(target=start_loop, daemon=True).start()
