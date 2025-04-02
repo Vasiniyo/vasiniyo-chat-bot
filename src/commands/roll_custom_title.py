@@ -1,4 +1,5 @@
 import random
+from types import SimpleNamespace
 
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -22,9 +23,16 @@ propose = set_markup("Я подброшу кубик и если угадаеш�
 
 
 def perms_ok(chat_id, user_id):
-    admins = bot.get_chat_administrators(chat_id)
-    user = next(filter(lambda a: a.user.id == user_id, admins), None)
-    return user is None or user.can_be_edited
+    admins = {a.user.id: a for a in bot.get_chat_administrators(chat_id)}
+    user = admins.get(user_id)
+    bot_user = admins.get(
+        bot.get_me().id,
+        SimpleNamespace(can_promote_members=False, can_invite_users=False),
+    )
+    return bot_user.can_invite_users and (
+        (user is None and bot_user.can_promote_members)
+        or (user is not None and user.can_be_edited)
+    )
 
 
 def set_random_title(callback, chat_id, user_id):
