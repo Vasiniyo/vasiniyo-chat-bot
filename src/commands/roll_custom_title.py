@@ -1,12 +1,16 @@
-import logging
-
 import random
 from types import SimpleNamespace
 
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from config import adjectives, nouns
-from database.titles import commit_dice_roll, commit_update_title, is_day_passed, get_user_title, is_user_has_title
+from database.titles import (
+    commit_dice_roll,
+    commit_update_title,
+    get_user_title,
+    is_day_passed,
+    is_user_has_title,
+)
 import safely_bot_utils as bot
 
 already_registered = bot.reply_to("Я тебя уже зарегистрировала!")
@@ -73,7 +77,6 @@ def handle_cant_roll(callback, user_id, message):
         no_perms(callback)(message)
     # user is playing for the first time
     elif can_roll is None:
-        # commit_dice_roll(chat_id, user_id)
         set_random_title(callback, chat_id, user_id)(message)
     elif user_admin_title is None:
         if is_user_has_title(chat_id, user_id):
@@ -90,13 +93,12 @@ def start(message):
     user_id = message.from_user.id
     if is_day_passed(chat_id, user_id) is not None:
         if get_admin_title(chat_id, user_id) is None:
-            # по логике приложения, здесь у юзера уже есть запись
-            # а значит должна быть и старая лычка, но возможна ошибка
+            # there may be an error here if user does not have a title in entry
+            # but according to the logic of application this should not happen
             return set_old_title(bot.reply_to, chat_id, user_id)(message)
         return already_registered(message)
     if not perms_ok(chat_id, user_id):
         return no_perms(bot.reply_to)(message)
-    #commit_dice_roll(chat_id, user_id)
     return set_random_title(bot.reply_to, chat_id, user_id)(message)
 
 
