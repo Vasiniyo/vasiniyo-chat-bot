@@ -1,13 +1,12 @@
 import logging
-
 import random
 from types import SimpleNamespace
 
-from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
-
-from config import adjectives, nouns
-from database.titles import commit_dice_roll, commit_update_title, is_day_passed, get_user_title, is_user_has_title
 import safely_bot_utils as bot
+from config import adjectives, nouns
+from database.titles import (commit_dice_roll, commit_update_title,
+                             get_user_title, is_day_passed, is_user_has_title)
+from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 already_registered = bot.reply_to("Я тебя уже зарегистрировала!")
 cant_roll = lambda func: func("Ты сегодня уже роллял лычку!")
