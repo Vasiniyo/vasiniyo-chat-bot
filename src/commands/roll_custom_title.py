@@ -4,8 +4,13 @@ from types import SimpleNamespace
 
 import safely_bot_utils as bot
 from config import adjectives, nouns
-from database.titles import (commit_dice_roll, commit_update_title,
-                             get_user_title, is_day_passed, is_user_has_title)
+from database.titles import (
+    commit_dice_roll,
+    commit_update_title,
+    get_user_title,
+    is_day_passed,
+    is_user_has_title,
+)
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 already_registered = bot.reply_to("Я тебя уже зарегистрировала!")
@@ -95,7 +100,7 @@ def start(message):
         return already_registered(message)
     if not perms_ok(chat_id, user_id):
         return no_perms(bot.reply_to)(message)
-    #commit_dice_roll(chat_id, user_id)
+    # commit_dice_roll(chat_id, user_id)
     return set_random_title(bot.reply_to, chat_id, user_id)(message)
 
 
