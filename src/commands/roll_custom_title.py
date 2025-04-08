@@ -4,13 +4,20 @@ from types import SimpleNamespace
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from config import adjectives, nouns
-from database.titles import commit_dice_roll, is_day_passed
+from database.titles import (
+    commit_dice_roll,
+    commit_update_title,
+    get_user_title,
+    is_day_passed,
+    is_user_has_title,
+)
 import safely_bot_utils as bot
 
 already_registered = bot.reply_to("Я тебя уже зарегистрировала!")
 cant_roll = lambda func: func("Ты сегодня уже роллял лычку!")
 no_perms = lambda func: func("У меня нет прав, чтобы изменить твою лычку!")
 guessed = lambda func: lambda t: func(f"Изменила твою лычку на {t}!")
+old_title = lambda func: lambda t: func(f"Вернула твою прежнюю лычку {t}!")
 no_guessed = lambda e, v: bot.edit_message_text_later(
     f"Ты не угадал! Ты выбрал {e}, выпало {v}"
 )
@@ -39,20 +46,43 @@ def set_random_title(callback, chat_id, user_id):
     title = f"{random.choice(adjectives)} {random.choice(nouns)}"
     bot.promote_chat_member(chat_id, user_id, can_invite_users=True)
     bot.set_chat_administrator_custom_title(chat_id, user_id, title)
+    commit_update_title(chat_id, user_id, title)
     return guessed(callback)(title)
+
+
+def set_old_title(callback, chat_id, user_id):
+    user_title = get_user_title(chat_id, user_id)
+    bot.promote_chat_member(chat_id, user_id, can_invite_users=True)
+    bot.set_chat_administrator_custom_title(chat_id, user_id, user_title)
+    return old_title(callback)(user_title)
+
+
+def get_admin_title(chat_id, user_id):
+    for admin in bot.get_chat_administrators(chat_id):
+        if admin.user.id == user_id:
+            return admin.custom_title
+    return None
 
 
 def handle_cant_roll(callback, user_id, message):
     chat_id = message.chat.id
     can_roll = is_day_passed(chat_id, user_id)
     has_perms = perms_ok(chat_id, user_id)
-    if can_roll and has_perms:
+    user_admin_title = get_admin_title(chat_id, user_id)
+
+    if can_roll and has_perms and user_admin_title:
         return False
+
     if not has_perms:
         no_perms(callback)(message)
+    # user is playing for the first time
     elif can_roll is None:
-        commit_dice_roll(chat_id, user_id)
         set_random_title(callback, chat_id, user_id)(message)
+    elif user_admin_title is None:
+        if is_user_has_title(chat_id, user_id):
+            set_old_title(callback, chat_id, user_id)(message)
+        else:
+            set_random_title(callback, chat_id, user_id)(message)
     else:
         cant_roll(callback)(message)
     return True
@@ -62,10 +92,13 @@ def start(message):
     chat_id = message.chat.id
     user_id = message.from_user.id
     if is_day_passed(chat_id, user_id) is not None:
+        if get_admin_title(chat_id, user_id) is None:
+            # there may be an error here if user does not have a title in entry
+            # but according to the logic of application this should not happen
+            return set_old_title(bot.reply_to, chat_id, user_id)(message)
         return already_registered(message)
     if not perms_ok(chat_id, user_id):
         return no_perms(bot.reply_to)(message)
-    commit_dice_roll(chat_id, user_id)
     return set_random_title(bot.reply_to, chat_id, user_id)(message)
 
 

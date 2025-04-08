@@ -13,3 +13,11 @@ def commit_query(query, args):
 def fetch_number(query, args):
     with sqlite3.connect(database_name) as connection:
         return head(connection.execute(query, args).fetchone())
+
+
+def is_column_exist(table, column):
+    query = """
+            select count(*) > 0
+            from pragma_table_info('{}') WHERE name=?;
+        """
+    return fetch_number(query.format(table), (column,))
