@@ -1,3 +1,5 @@
+import random
+
 from rapidfuzz import fuzz, process
 
 
@@ -7,6 +9,24 @@ def find_best_match(input_text: str, category_keys: list, simmilarity=80):
         if score >= (simmilarity):
             return best_match
     return input_text
+
+
+def choice_one_match(user_message, category_keys):
+    words = user_message.split()
+    good_words = list(
+        filter(
+            lambda m: m[0] is not None,
+            [
+                test_match(substring, category_keys)
+                for substring in [
+                    " ".join(words[i : j + 1])
+                    for i in range(len(words))
+                    for j in range(i, len(words))
+                ]
+            ],
+        )
+    )
+    return (None, False) if len(good_words) == 0 else random.choice(good_words)
 
 
 def test_match(user_message: str, category_keys: list):

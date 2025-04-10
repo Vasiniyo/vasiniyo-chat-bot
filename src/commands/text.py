@@ -2,7 +2,7 @@ import random
 
 from config import MESSAGE_MAX_LEN, bot
 
-from .fuzzy_match.fuzzy_match import test_match
+from .fuzzy_match.fuzzy_match import choice_one_match
 
 
 def handle_long(answers):
@@ -28,5 +28,5 @@ def handle_text_to_sticker(answers):
 
 
 def __get_response(message, answers):
-    matched_key, used_inverted = test_match(message.text, answers.keys())
+    matched_key, used_inverted = choice_one_match(message.text, answers.keys())
     return matched_key, random.choice(answers.get(matched_key)), used_inverted
