@@ -14,7 +14,7 @@ from commands.text import handle_long, handle_text_to_sticker, handle_text_to_te
 from commands.top import handle_top
 from config import MESSAGE_MAX_LEN, allowed_chats, bot, templates
 
-from .fuzzy_match.fuzzy_match import test_match
+from .fuzzy_match.fuzzy_match import choice_one_match
 
 head = lambda l: l[0] if l else None
 at = lambda l: lambda n: l[n] if n < len(l) else None
@@ -27,7 +27,9 @@ is_bot_username = lambda c: at(c)(1) == bot.get_me().username
 unknown_cmd = lambda c: all([is_bot_username(c), head(c) not in list(COMMANDS.keys())])
 
 chat_ok = lambda p: lambda m: p(m) and in_allowed_chat(m)
-message_ok = lambda c: lambda m: head(test_match(m.text, list(templates[c].keys())))
+message_ok = lambda c: lambda m: head(
+    choice_one_match(m.text, list(templates[c].keys()))
+)
 sticker_ok = lambda c: lambda m: m.sticker.file_id in templates[c]
 cmd_ok = lambda m: is_cmd_for_bot(split_cmd(m))
 cmd_no_ok = lambda m: unknown_cmd(split_cmd(m))

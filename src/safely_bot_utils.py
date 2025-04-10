@@ -65,7 +65,7 @@ reply_with_user_links = lambda text: reply_to(
 def to_link_user(user):
     if not (user.username is None):
         return f"{user.first_name} ([{user.username}](t.me/{user.username}))"
-    return f"[{user.first_name}](tg://user?id={user.id})"
+    return f"{user.first_name}"
 
 
 get_chat_member = lambda chat_id, user_id: (
