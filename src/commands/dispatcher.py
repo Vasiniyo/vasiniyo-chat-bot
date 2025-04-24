@@ -7,12 +7,13 @@ from captcha_manager import (
 from commands.drink_or_not import handle_drink_or_not
 from commands.event import play, send_players
 from commands.help import handle_help, handle_inline_help, handle_unknown
+from commands.how_much import handle_how_much
 from commands.like import handle_like
 from commands.roll_custom_title import handle_title_change_attempt, prepare_game, start
 from commands.stickers import handle_stickers
 from commands.text import handle_long, handle_text_to_sticker, handle_text_to_text
 from commands.top import handle_top
-from config import MESSAGE_MAX_LEN, allowed_chats, bot, templates
+from config import MESSAGE_MAX_LEN, allowed_chats, bot, espers, templates
 
 from .fuzzy_match.fuzzy_match import choice_one_match
 
@@ -41,6 +42,7 @@ COMMANDS = {
     "rename": (prepare_game, "Ставит случайную лычку."),
     "reg": (start, "Ставит случайную лычку и даёт право участия в ежедневных ивентах."),
     "drink_or_not": (handle_drink_or_not, "Говорит пить сегодня или нет."),
+    "how_much_esper": (handle_how_much(espers), "Говорит насколько ты эспер"),
     "players": (send_players, "Выводит список участников ивентов."),
     "play": (play, "Выбирает эспера дня."),
 }
