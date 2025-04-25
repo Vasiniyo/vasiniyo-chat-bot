@@ -1,5 +1,6 @@
 import random
 
+from config import phrases
 from database.events import commit_win, get_last_winner, is_day_passed
 import safely_bot_utils as bot
 
@@ -18,13 +19,12 @@ def play(message):
     if day_passed == 1 or day_passed is None:
         winner = random.choice(players)
         commit_win(chat_id, winner.id, event_id)
-        bot.reply_with_user_links("Эспер дня: " + bot.to_link_user(winner))(message)
+        answer = phrases("play_select", bot.to_link_user(winner))
     else:
         winner_id = get_last_winner(chat_id, event_id)
         winner = next(filter(lambda p: p.id == winner_id, players))
-        bot.reply_with_user_links(
-            "Ничего не поменялось.\nЭспер дня: " + bot.to_link_user(winner)
-        )(message)
+        answer = phrases("play_already_selected", bot.to_link_user(winner))
+    return bot.reply_with_user_links(answer)(message)
 
 
 def send_players(message):

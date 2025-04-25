@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from config import adjectives, nouns
+from config import adjectives, nouns, phrases
 from database.titles import (
     commit_dice_roll,
     commit_update_title,
@@ -13,20 +13,18 @@ from database.titles import (
 )
 import safely_bot_utils as bot
 
-already_registered = bot.reply_to("Я тебя уже зарегистрировала!")
-cant_roll = lambda func: func("Ты сегодня уже роллял лычку!")
-no_perms = lambda func: func("У меня нет прав, чтобы изменить твою лычку!")
-guessed = lambda func: lambda t: func(f"Изменила твою лычку на {t}!")
-old_title = lambda func: lambda t: func(f"Вернула твою прежнюю лычку {t}!")
-no_guessed = lambda e, v: bot.edit_message_text_later(
-    f"Ты не угадал! Ты выбрал {e}, выпало {v}"
-)
-not_yours = bot.answer_callback_query("Эти кнопки были не для тебя!")
+already_registered = bot.reply_to(phrases("roll_already_registered"))
+cant_roll = lambda func: func(phrases("roll_cant_roll"))
+no_perms = lambda func: func(phrases("roll_no_perms"))
+guessed = lambda func: lambda t: func(phrases("roll_guessed", t))
+old_title = lambda func: lambda t: func(phrases("roll_old_title", t))
+no_guessed = lambda e, v: bot.edit_message_text_later(phrases("roll_no_guessed", e, v))
+not_yours = bot.answer_callback_query(phrases("roll_not_yours"))
 set_markup = lambda text: lambda markup: bot.reply_to(text, reply_markup=markup)
 
 callback_data = lambda i, m: {"callback_data": f"number_{i}$userid_{m.from_user.id}"}
 parse_callback_data = lambda c: map(lambda e: int(e.split("_")[1]), c.data.split("$"))
-propose = set_markup("Я подброшу кубик и если угадаешь число, то я поменяю тебе лычку!")
+propose = set_markup(phrases("roll_propose"))
 
 
 def perms_ok(chat_id, user_id):

@@ -13,7 +13,18 @@ from commands.roll_custom_title import handle_title_change_attempt, prepare_game
 from commands.stickers import handle_stickers
 from commands.text import handle_long, handle_text_to_sticker, handle_text_to_text
 from commands.top import handle_top
-from config import MESSAGE_MAX_LEN, allowed_chats, bot, espers, templates
+from config import (
+    MESSAGE_MAX_LEN,
+    allowed_chats,
+    drinks,
+    espers,
+    long_message,
+    phrases,
+    sticker_to_sticker,
+    text_to_sticker,
+    text_to_text,
+)
+import safely_bot_utils as bot
 
 from .fuzzy_match.fuzzy_match import choice_one_match
 
@@ -25,43 +36,44 @@ cmd_name = lambda m: head(split_cmd(m))
 split_cmd = lambda m: head(m.text.lstrip("/").split()).split("@")
 is_cmd_for_bot = lambda c: any([at(c)(1) is None, is_bot_username(c)])
 is_bot_username = lambda c: at(c)(1) == bot.get_me().username
-unknown_cmd = lambda c: all([is_bot_username(c), head(c) not in list(COMMANDS.keys())])
+unknown_cmd = (
+    lambda c: head(c) == "@"
+    and is_bot_username(c)
+    and head(c) not in list(COMMANDS.keys())
+)
 
 chat_ok = lambda p: lambda m: p(m) and in_allowed_chat(m)
-message_ok = lambda c: lambda m: head(
-    choice_one_match(m.text, list(templates[c].keys()))
-)
-sticker_ok = lambda c: lambda m: m.sticker.file_id in templates[c]
+message_ok = lambda t: lambda m: head(choice_one_match(m.text, t.keys()))
+sticker_ok = lambda t: lambda m: m.sticker.file_id in t.keys()
 cmd_ok = lambda m: is_cmd_for_bot(split_cmd(m))
 cmd_no_ok = lambda m: unknown_cmd(split_cmd(m))
 
 COMMANDS = {
-    "help": (handle_help, "Выводит список доступных команд и их описание."),
-    "top": (handle_top, "Показывает топ пользователей по лайкам."),
-    "like": (handle_like, "Ставит лайк сообщению, на которое вы ответили."),
-    "rename": (prepare_game, "Ставит случайную лычку."),
-    "reg": (start, "Ставит случайную лычку и даёт право участия в ежедневных ивентах."),
-    "drink_or_not": (handle_drink_or_not, "Говорит пить сегодня или нет."),
-    "how_much_esper": (handle_how_much(espers), "Говорит насколько ты эспер"),
-    "players": (send_players, "Выводит список участников ивентов."),
-    "play": (play, "Выбирает эспера дня."),
+    "help": (None, phrases("help_help")),
+    "top": (handle_top, phrases("top_help")),
+    "like": (handle_like, phrases("like_help")),
+    "rename": (prepare_game, phrases("rename_help")),
+    "reg": (start, phrases("reg_help")),
+    "drink_or_not": (handle_drink_or_not(drinks), phrases("drink_or_not_help")),
+    "how_much_esper": (handle_how_much(espers), phrases("how_much_esper_help")),
+    "players": (send_players, phrases("players_help")),
+    "play": (play, phrases("play_help")),
 }
+COMMANDS["help"] = (handle_help(COMMANDS), COMMANDS["help"][1])
 
 handle_cmd = lambda m: head(COMMANDS[cmd_name(m)])(m)
 handlers = {
     handle_cmd: {"func": chat_ok(cmd_ok), "commands": list(COMMANDS.keys())},
-    handle_unknown: {"func": chat_ok(cmd_no_ok)},
-    handle_long(templates["long_message"]): {
+    handle_unknown(phrases("unknown_command")): {"func": chat_ok(cmd_no_ok)},
+    handle_long(long_message): {
         "func": chat_ok(lambda m: len(m.text) > MESSAGE_MAX_LEN)
     },
-    handle_text_to_sticker(templates["text_to_sticker"]): {
-        "func": chat_ok(message_ok("text_to_sticker"))
+    handle_text_to_sticker(text_to_sticker): {
+        "func": chat_ok(message_ok(text_to_sticker))
     },
-    handle_text_to_text(templates["text_to_text"]): {
-        "func": chat_ok(message_ok("text_to_text"))
-    },
-    handle_stickers(templates["sticker_to_sticker"]): {
-        "func": chat_ok(sticker_ok("sticker_to_sticker")),
+    handle_text_to_text(text_to_text): {"func": chat_ok(message_ok(text_to_text))},
+    handle_stickers(sticker_to_sticker): {
+        "func": chat_ok(sticker_ok(sticker_to_sticker)),
         "content_types": ["sticker"],
     },
     handle_new_user: {
@@ -69,13 +81,9 @@ handlers = {
         "content_types": ["new_chat_members"],
     },
     handle_verify_captcha: {"func": lambda m: m.from_user.id in CAPTCHA_USERS},
-    handle_long: {"func": chat_ok(lambda m: len(m.text) > MESSAGE_MAX_LEN)},
-    handle_text_to_sticker: {"func": chat_ok(message_ok("text_to_sticker"))},
-    handle_text_to_text: {"func": chat_ok(message_ok("text_to_text"))},
-    handle_stickers: {"func": in_allowed_chat, "content_types": ["sticker"]},
 }
 
-inline_handlers = {handle_inline_help: {lambda query: query.query == ""}}
+inline_handlers = {handle_inline_help(COMMANDS): {lambda query: query.query == ""}}
 
 query_handlers = {
     handle_title_change_attempt: {

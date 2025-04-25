@@ -1,31 +1,27 @@
 from telebot.types import InlineQueryResultArticle, InputTextMessageContent
 
-from config import bot
+from config import phrases
+import safely_bot_utils as bot
 
 
-def handle_help(message):
-    from .dispatcher import COMMANDS
-
-    help_text = "🤖 Доступные команды:\n\n" + "\n".join(
-        f"/{cmd} - {desc}" for cmd, (_, desc) in COMMANDS.items()
+def handle_help(commands):
+    help_text = f"{phrases('help_header')}\n\n" + "\n".join(
+        f"/{cmd} - {desc}" for cmd, (_, desc) in commands.items()
     )
-    bot.reply_to(message, help_text)
+    return bot.reply_to(help_text)
 
 
-def handle_inline_help(query):
-    from .dispatcher import COMMANDS
-
-    commands = [
+def handle_inline_help(commands):
+    inline_results = [
         InlineQueryResultArticle(
             id=ord,
             title=cmd,
             description=desc[1],
             input_message_content=InputTextMessageContent(f"/{cmd}"),
         )
-        for ord, (cmd, desc) in enumerate(COMMANDS.items())
+        for ord, (cmd, desc) in enumerate(commands.items())
     ]
-    bot.answer_inline_query(query.id, commands)
+    return bot.answer_inline_query(inline_results)
 
 
-def handle_unknown(message):
-    bot.reply_to(message, "🤯 Я такой команды не знаю! Введите /help")
+handle_unknown = bot.reply_to

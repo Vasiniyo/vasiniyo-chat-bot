@@ -92,6 +92,14 @@ send_dice = lambda m: (
     do_action(bot.send_dice)(m.chat.id, reply_to_message_id=m.message_id, emoji="🎲")
 )
 
+send_sticker = lambda file_id: lambda m: (
+    do_action(bot.send_sticker)(m.chat.id, file_id, reply_to_message_id=m.message_id)
+)
+
+answer_inline_query = lambda cmds: lambda query: (
+    do_action(bot.answer_inline_query)(query.id, cmds)
+)
+
 get_me = do_action(bot.get_me)
 
 loop = asyncio.new_event_loop()
