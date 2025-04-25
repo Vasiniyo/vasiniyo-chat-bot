@@ -48,22 +48,29 @@ def expand_templates(template_dict: dict) -> dict:
     }
 
 
-templates = {
-    "sticker_to_sticker": {
-        stickers[key]: to_sticker_list(value)
-        for key, value in config.get("sticker_to_sticker").items()
-    },
-    "text_to_sticker": {
-        key: to_sticker_list(value)
-        for key, value in config.get("text_to_sticker").items()
-    },
-    "text_to_text": expand_templates(config.get("text_to_text")),
-    "long_message": config.get("long_message").get("long_message"),
+sticker_to_sticker = {
+    stickers[key]: to_sticker_list(value)
+    for key, value in config.get("sticker_to_sticker").items()
 }
-
+text_to_sticker = {
+    key: to_sticker_list(value) for key, value in config.get("text_to_sticker").items()
+}
+text_to_text = expand_templates(config.get("text_to_text"))
+long_message = config.get("long_message").get("long_message")
 MESSAGE_MAX_LEN = config.get("long_message").get("message_max_len")
-
 adjectives = config.get("custom-titles").get("adjectives")
 nouns = config.get("custom-titles").get("nouns")
 drinks = config.get("drink-or-not")
 espers = config.get("how-much-espers")
+lang = config.get("lang") or "ru"
+
+from locale import locale
+
+
+def phrases(k, *args):
+    global lang
+    if lang not in locale:
+        lang = "ru"
+    if k in locale[lang]:
+        return locale[lang][k].format(*args)
+    return "Мне нечего тебе сказать..."
