@@ -7,7 +7,7 @@ from .fuzzy_match.fuzzy_match import choice_one_match
 
 
 def handle_long(answers):
-    return bot.reply_to(random.choice(answers))
+    return lambda m: bot.reply_to(random.choice(answers))(m)
 
 
 def handle_text_to_text(answers):
@@ -21,10 +21,7 @@ def handle_text_to_text(answers):
 
 
 def handle_text_to_sticker(answers):
-    def _handle(message):
-        bot.send_sticker(__get_response(message, answers)[1])(message)
-
-    return _handle
+    return lambda m: bot.send_sticker(__get_response(m, answers)[1])(m)
 
 
 def __get_response(message, answers):
