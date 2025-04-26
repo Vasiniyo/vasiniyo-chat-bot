@@ -4,7 +4,4 @@ import safely_bot_utils as bot
 
 
 def handle_stickers(answers):
-    def _handle(message):
-        bot.send_sticker(random.choice(answers.get(message.sticker.file_id)))(message)
-
-    return _handle
+    return lambda m: bot.send_sticker(random.choice(answers.get(m.sticker.file_id)))(m)
