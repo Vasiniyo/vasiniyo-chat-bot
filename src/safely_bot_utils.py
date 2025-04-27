@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import logging
 import threading
 
@@ -66,6 +67,19 @@ def to_link_user(user):
     if not (user.username is None):
         return f"{user.first_name} ([{user.username}](t.me/{user.username}))"
     return f"{user.first_name}"
+
+
+def daily_hash(user_id):
+    """
+    https://gist.github.com/badboy/6267743
+    """
+    key = user_id + datetime.date.today().toordinal()
+    key = (key ^ 61) ^ (key >> 16)
+    key = key + (key << 3)
+    key = key ^ (key >> 4)
+    key = key * 0x27D4EB2D
+    key = key ^ (key >> 15)
+    return key
 
 
 get_chat_member = lambda chat_id, user_id: (
