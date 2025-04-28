@@ -1,3 +1,6 @@
+from math import e
+from random import random
+
 from captcha_manager import (
     CAPTCHA_USERS,
     handle_new_user,
@@ -61,12 +64,20 @@ COMMANDS = {
 }
 COMMANDS["help"] = (handle_help(COMMANDS), COMMANDS["help"][1])
 
+laplace_cdf = lambda L: lambda M: lambda x: (
+    0.5 * e ** ((x - M) / L) if x < M else 1.0 - 0.5 / e ** ((x - M) / L)
+)
+
+# scales values between 0 and maximal allowed message length in telegram
+scaler = lambda x: x / 4096
+probability = laplace_cdf(scaler(MESSAGE_MAX_LEN / 2))(scaler(MESSAGE_MAX_LEN * 2))
+
 handle_cmd = lambda m: head(COMMANDS[cmd_name(m)])(m)
 handlers = {
     handle_cmd: {"func": chat_ok(cmd_ok), "commands": list(COMMANDS.keys())},
     handle_unknown(phrases("unknown_command")): {"func": chat_ok(cmd_no_ok)},
     handle_long(long_message): {
-        "func": chat_ok(lambda m: len(m.text) > MESSAGE_MAX_LEN)
+        "func": chat_ok(lambda m: random() <= probability(scaler(len(m.text))))
     },
     handle_text_to_sticker(text_to_sticker): {
         "func": chat_ok(message_ok(text_to_sticker))
