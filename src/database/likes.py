@@ -1,17 +1,6 @@
 import sqlite3
 
-database_name = "/data/likes.db"
-
-
-def commit_query(query, args):
-    with sqlite3.connect(database_name) as connection:
-        connection.execute(query, args)
-        connection.commit()
-
-
-def fetch_number(query, args):
-    with sqlite3.connect(database_name) as connection:
-        return connection.execute(query, args).fetchone()[0]
+from database.utils import commit_query, database_name, fetch_number
 
 
 def count_likes(chat_id, to_user_id):

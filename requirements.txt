@@ -2,3 +2,5 @@ black==25.1.0
 isort==6.0.1
 pyTelegramBotAPI==4.26.0
 RapidFuzz==3.0.0
+toml==0.10.2
+captcha==0.7.1
