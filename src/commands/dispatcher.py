@@ -1,11 +1,9 @@
-from captcha_manager import (
-    CAPTCHA_USERS,
-    handle_new_user,
-    handle_user_left,
-    handle_verify_captcha,
-)
 from math import e
 from random import random
+
+from captcha_manager import (
+    CAPTCHA_USERS, handle_new_user, handle_user_left, handle_verify_captcha,
+)
 from commands.drink_or_not import handle_drink_or_not
 from commands.event import play, send_players
 from commands.help import handle_help, handle_inline_help, handle_unknown
@@ -16,15 +14,8 @@ from commands.stickers import handle_stickers
 from commands.text import handle_long, handle_text_to_sticker, handle_text_to_text
 from commands.top import handle_top
 from config import (
-    MESSAGE_MAX_LEN,
-    allowed_chats,
-    drinks,
-    espers,
-    long_message,
-    phrases,
-    sticker_to_sticker,
-    text_to_sticker,
-    text_to_text,
+    MESSAGE_MAX_LEN, allowed_chats, drinks, espers, long_message, phrases,
+    sticker_to_sticker, text_to_sticker, text_to_text,
 )
 import safely_bot_utils as bot
 
@@ -63,8 +54,9 @@ COMMANDS = {
 }
 COMMANDS["help"] = (handle_help(COMMANDS), COMMANDS["help"][1])
 
-laplace_cdf = lambda L: lambda M: lambda x: \
-    0.5 * e ** ((x - M) / L) if x < M else 1. - 0.5 / e ** ((x - M) / L)
+laplace_cdf = lambda L: lambda M: lambda x: (
+    0.5 * e ** ((x - M) / L) if x < M else 1.0 - 0.5 / e ** ((x - M) / L)
+)
 
 # scales values between 0 and maximal allowed message length in telegram
 scaler = lambda x: x / 4096

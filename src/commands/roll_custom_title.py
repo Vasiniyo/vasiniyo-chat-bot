@@ -5,10 +5,7 @@ from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from config import adjectives, nouns, phrases
 from database.titles import (
-    commit_dice_roll,
-    commit_update_title,
-    get_user_title,
-    is_day_passed,
+    commit_dice_roll, commit_update_title, get_user_title, is_day_passed,
     is_user_has_title,
 )
 import safely_bot_utils as bot
