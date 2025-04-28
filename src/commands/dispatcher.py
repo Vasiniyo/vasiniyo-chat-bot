@@ -8,14 +8,13 @@ from captcha_manager import (
     handle_verify_captcha,
 )
 from commands.drink_or_not import handle_drink_or_not
-from commands.event import play, send_players
+from commands.event import handle_top_espers, play, send_players
 from commands.help import handle_help, handle_inline_help, handle_unknown
 from commands.how_much import handle_how_much
-from commands.like import handle_like
+from commands.like import handle_like, handle_top_likes
 from commands.roll_custom_title import handle_title_change_attempt, prepare_game, start
 from commands.stickers import handle_stickers
 from commands.text import handle_long, handle_text_to_sticker, handle_text_to_text
-from commands.top import handle_top
 from config import (
     MESSAGE_MAX_LEN,
     allowed_chats,
@@ -53,8 +52,9 @@ cmd_no_ok = lambda m: unknown_cmd(split_cmd(m))
 
 COMMANDS = {
     "help": (None, phrases("help_help")),
-    "top": (handle_top, phrases("top_help")),
-    "like": (handle_like, phrases("like_help")),
+    "top_espers": (handle_top_espers, phrases("top_espers_help")),
+    "top_likes": (handle_top_likes, phrases("top_likes_help")),
+    "like": (handle_top_likes, phrases("like_help")),
     "rename": (prepare_game, phrases("rename_help")),
     "reg": (start, phrases("reg_help")),
     "drink_or_not": (handle_drink_or_not(drinks), phrases("drink_or_not_help")),
