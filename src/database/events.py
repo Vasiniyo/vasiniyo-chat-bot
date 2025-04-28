@@ -1,4 +1,6 @@
-from database.utils import commit_query, fetch_number
+import sqlite3
+
+from database.utils import commit_query, database_name, fetch_number
 
 
 def get_last_winner(chat_id, event_id):
@@ -36,6 +38,23 @@ def commit_win(chat_id, user_id, event_id):
         """,
         (chat_id, user_id, event_id),
     )
+
+
+def fetch_top(chat_id, event_id, limit):
+    with sqlite3.connect(database_name) as connection:
+        return connection.execute(
+            """
+            select winner_user_id, winner_count
+            from (select distinct winner_user_id,
+                                  count(*) over (partition by winner_user_id) as winner_count
+                  from events
+                  where chat_id = ?
+                  and event_id = ?)
+            order by winner_count desc
+            limit ?            
+            """,
+            (chat_id, event_id, limit),
+        ).fetchall()
 
 
 commit_query(

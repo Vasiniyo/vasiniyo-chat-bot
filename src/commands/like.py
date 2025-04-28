@@ -1,6 +1,16 @@
+from telebot.types import LinkPreviewOptions
+
 from config import bot, phrases
-from database.likes import add_like, count_likes
+from database.likes import add_like, count_likes, fetch_top
 import safely_bot_utils as bot
+
+
+def handle_top_likes(message):
+    bot.reply_top(
+        lambda: fetch_top(message.chat.id, 10),
+        message.chat.id,
+        phrases("top_likes_header"),
+    )(message)
 
 
 def handle_like(message):

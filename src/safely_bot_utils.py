@@ -5,7 +5,7 @@ import threading
 
 from telebot.types import LinkPreviewOptions
 
-from config import bot
+from config import bot, phrases
 from logger import logger
 
 
@@ -64,6 +64,8 @@ reply_with_user_links = lambda text: reply_to(
 
 
 def to_link_user(user):
+    if user is None:
+        return phrases["unknown_user"]
     if not (user.username is None):
         return f"{user.first_name} ([{user.username}](t.me/{user.username}))"
     return f"{user.first_name}"
@@ -80,6 +82,19 @@ def daily_hash(user_id):
     key = key * 0x27D4EB2D
     key = key ^ (key >> 15)
     return key
+
+
+get_user_name = lambda chat_id, user_id: (
+    to_link_user(get_chat_member(chat_id, user_id).user)
+)
+
+
+def reply_top(fetch, chat_id, header):
+    top_message = "\n".join(
+        f"{position + 1}. {get_user_name(chat_id, user_id)} — {count}"
+        for position, (user_id, count) in enumerate(fetch())
+    )
+    return reply_with_user_links(f"{header}\n{top_message}") or (lambda: None)
 
 
 get_chat_member = lambda chat_id, user_id: (

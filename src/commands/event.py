@@ -1,8 +1,10 @@
 import random
 
 from config import phrases
-from database.events import commit_win, get_last_winner, is_day_passed
+from database.events import commit_win, fetch_top, get_last_winner, is_day_passed
 import safely_bot_utils as bot
+
+esper_event_id = 0
 
 
 def get_players(chat_id):
@@ -12,7 +14,7 @@ def get_players(chat_id):
 
 
 def play(message):
-    event_id = 0
+    event_id = esper_event_id
     chat_id = message.chat.id
     players = get_players(chat_id)
     day_passed = is_day_passed(chat_id, event_id)
@@ -35,3 +37,11 @@ def send_players(message):
         )
     )
     bot.reply_with_user_links(answer)(message)
+
+
+def handle_top_espers(message):
+    bot.reply_top(
+        lambda: fetch_top(message.chat.id, esper_event_id, 10),
+        message.chat.id,
+        phrases("top_espers_header"),
+    )(message)
