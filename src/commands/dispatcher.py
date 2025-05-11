@@ -7,6 +7,7 @@ from captcha_manager import (
     handle_user_left,
     handle_verify_captcha,
 )
+from commands.anime import handle_anime
 from commands.drink_or_not import handle_drink_or_not
 from commands.event import handle_top_espers, play, send_players
 from commands.help import handle_help, handle_inline_help, handle_unknown
@@ -52,6 +53,7 @@ cmd_no_ok = lambda m: unknown_cmd(split_cmd(m))
 
 COMMANDS = {
     "help": (None, phrases("help_help")),
+    "anime": (handle_anime, phrases("anime_help")),
     "top_espers": (handle_top_espers, phrases("top_espers_help")),
     "top_likes": (handle_top_likes, phrases("top_likes_help")),
     "like": (handle_top_likes, phrases("like_help")),
