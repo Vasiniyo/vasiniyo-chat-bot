@@ -8,8 +8,15 @@
 [categories]
 good = ["хороший", "отличный", "лучший"]
 
-[captcha_properties]
+[captcha_properties.gen]
 "length" = 5
+"banned_symbols" = "104aqiol"
+"max_rotation" = 45
+"margins_width" = 12
+"margins_color" = "#0e1621"
+"font_path" = "/usr/share/fonts/TTF/GoMonoNerdFontMono-Regular.ttf"
+
+[captcha_properties.validate]
 "timer" = 90
 "update_freq" = 10
 "attempts" = 5
