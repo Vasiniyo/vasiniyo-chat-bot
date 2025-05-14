@@ -43,7 +43,8 @@ def update_captcha_message(user_id):
     user = CAPTCHA_USERS.get(user_id)
     if not user or user["message_id"] is None:
         logger.info(
-            f"Tried UPDATE_CAPTCHA_MESSAGE for the user {user_id}, but could not find them"
+            "Tried UPDATE_CAPTCHA_MESSAGE for the user %s, but could not find them",
+            user_id,
         )
         return
 
@@ -51,7 +52,7 @@ def update_captcha_message(user_id):
     new_caption = build_caption(user["time_left"], user["failed_attempts"])
 
     if new_caption == user.get("last_caption"):
-        logger.debug(f"Skipping update: caption unchanged for user {user_id}")
+        logger.debug("Skipping update: caption unchanged for user %s", user_id)
         return
 
     # WARN if buttons are added to the message, this
@@ -67,14 +68,13 @@ def fail_user(user_id, reason="Time is up"):
     user = CAPTCHA_USERS.pop(user_id, None)
     if not user:
         logger.info(
-            "Tried calling FAIL_USER %s for the reason %s, but counld not find them".format(
-                user_id, reason
-            )
+            "Tried calling FAIL_USER %s for the reason %s, but counld not find them",
+            user_id,
+            reason,
         )
         return
 
-    logger.info(
-        "Failing user %s in chat %s: %s".format(user_id, user["chat_id"], reason)
+    logger.info("Failing user %s in chat %s: %s", user_id, user["chat_id"], reason)
     )
     caption = (
         build_caption(user["time_left"], user["failed_attempts"]) + f"\n❌ {reason}"
@@ -90,11 +90,7 @@ def fail_user(user_id, reason="Time is up"):
 def pass_user(user_id, user_input):
     user = CAPTCHA_USERS.get(user_id)
     if not user:
-        logger.info(
-            "Tried calling PASS_USER %s for the reason %s, but counld not find them".format(
-                user_id, reason
-            )
-        )
+        logger.info("Tried calling PASS_USER %s, but counld not find them", user_id)
         return
 
     task_id = user.get("eq_key")
@@ -107,9 +103,10 @@ def pass_user(user_id, user_input):
         cancel_task(task_id)
 
     logger.info(
-        "User %s passed captcha in chat %s, answer='%s'".format(
-            user_id, user["chat_id"], user_input
-        )
+        "User %s passed captcha in chat %s, answer='%s'",
+        user_id,
+        user["chat_id"],
+        user_input,
     )
 
 
@@ -117,15 +114,17 @@ def on_failed_attempt(user_id, user_input):
     user = CAPTCHA_USERS.get(user_id)
     if not user:
         logger.info(
-            f"Tried to issue FAILED_ATTEMPT for the user {user_id}, but could not find them"
+            "Tried to issue FAILED_ATTEMPT for the user %s, but could not find them",
+            user_id,
         )
         return
 
     user["failed_attempts"] += 1
     logger.info(
-        "User %s attempt failed, got '%s', expected='%s'".format(
-            user_id, user_input, user["answer"]
-        )
+        "User %s attempt failed, got '%s', expected='%s'",
+        user_id,
+        user_input,
+        user["answer"],
     )
     if user["failed_attempts"] >= captcha_properties["attempts"]:
         fail_user(user_id, reason="Max attempts used")
@@ -159,7 +158,7 @@ def handle_new_user(message):
         eq_key = queue_captcha_updates(user_id)
         CAPTCHA_USERS[user_id]["eq_key"] = eq_key
 
-        logger.info("New user %s got capcha text %s".format(user_id, text))
+        logger.info("New user %s got capcha text %s", user_id, text)
 
 
 def handle_verify_captcha(message):
@@ -167,7 +166,8 @@ def handle_verify_captcha(message):
     user = CAPTCHA_USERS.get(user_id)
     if not user:
         logger.info(
-            f"Tried HANDLE_VERIFY_CAPTCHA for the user {user_id}, but could not find them"
+            "Tried HANDLE_VERIFY_CAPTCHA for the user %s, but could not find them",
+            user_id,
         )
         return
 
@@ -187,13 +187,13 @@ def handle_user_left(message):
     logger.info("User left mid-captcha, processing...")
     user_id = message.left_chat_member.id
     user = CAPTCHA_USERS.pop(user_id, None)
-    logger.info(f"\t{user_id}, {user}")
+    logger.info("\t%s, %s", user_id, user)
     if user:
         eq_key = user.get("eq_key")
         if eq_key:
             cancel_task(eq_key)
         logger.info(
-            f"User {user_id} left mid-captcha. Cancelled scheduled CAPTCHA task."
+            "User %s left mid-captcha. Cancelled scheduled CAPTCHA task.", user_id
         )
 
 
@@ -202,7 +202,8 @@ def queue_captcha_updates(user_id):
     user = CAPTCHA_USERS.get(user_id)
     if not user:
         logger.info(
-            f"Tried QUEUE_CAPTCHA_UPDATES for the user {user_id}, but could not find them"
+            "Tried QUEUE_CAPTCHA_UPDATES for the user %s, but could not find them",
+            user_id,
         )
         return None
 
@@ -225,7 +226,8 @@ def send_initial_captcha(user_id):
     user = CAPTCHA_USERS.get(user_id)
     if not user:
         logger.info(
-            f"Tried SEND_INITIAL_CAPTCHA for the user {user_id}, but could not find them"
+            "Tried SEND_INITIAL_CAPTCHA for the user %s, but could not find them",
+            user_id,
         )
         return
 
