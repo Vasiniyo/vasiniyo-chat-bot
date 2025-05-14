@@ -100,7 +100,7 @@ def pass_user(user_id, user_input):
     if user["message_id"]:
         bot.delete_message(user["chat_id"], user["message_id"])
     if task_id:
-        cancel_task(task_id)
+        cancel_task(task_id, silently=True)
 
     logger.info(
         "User %s passed captcha in chat %s, answer='%s'",

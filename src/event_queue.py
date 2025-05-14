@@ -91,11 +91,13 @@ def add_task(timestamps, default, conditional_funcs=None):
     return key
 
 
-def cancel_task(key):
+def cancel_task(key, silently=False):
     if key in EVENTS:
         EVENTS[key]["cancelled"] = True
         cond = EVENTS[key].get("conditional_funcs", {})
         logger.debug("⛔ Canceling task: %s", key)
+        if silently:
+            return
 
         if "on_cancel" in cond:
             func = cond["on_cancel"]["func"]
