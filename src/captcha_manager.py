@@ -98,6 +98,8 @@ def fail_user(user_id, reason="Time is up"):
         return
 
     logger.info("Failing user %s in chat %s: %s", user_id, user["chat_id"], reason)
+    user["time_left"] = max(
+        0, user["time_left"] - captcha_properties["validate"]["update_freq"]
     )
     caption = (
         build_caption(user["time_left"], user["failed_attempts"]) + f"\n❌ {reason}"
