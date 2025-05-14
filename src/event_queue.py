@@ -126,7 +126,6 @@ def tick():
             remove_keys.append(key)
             continue
 
-        event["offset"] += 1
         offset = event["offset"]
 
         while event["sub_events"] and event["sub_events"][0]["timestamp"] <= offset:
@@ -135,6 +134,8 @@ def tick():
                 next_event["action"]()
             except Exception as e:
                 logger.exception("Event key=%s failed: %s", key, e)
+
+        event["offset"] += 1
 
         if not event["sub_events"]:
             remove_keys.append(key)
@@ -172,3 +173,7 @@ def stop_ticking():
     TICK_THREAD_STOP.set()
     TICK_JOB_RUNNING = False
     logger.debug("Stopped ticking thread since no events remain")
+
+
+def is_thread_running():
+    return TICK_JOB_RUNNING

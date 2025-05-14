@@ -210,6 +210,7 @@ def queue_captcha_updates(user_id):
     total = captcha_properties["timer"]
     freq = captcha_properties["update_freq"]
     timestamps = list(range(freq, total + 1, freq))
+    timestamps = list(range(freq, total, freq))
 
     task_id = add_task(
         timestamps=timestamps,
