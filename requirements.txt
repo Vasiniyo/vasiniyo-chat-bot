@@ -4,3 +4,4 @@ pyTelegramBotAPI==4.26.0
 RapidFuzz==3.0.0
 toml==0.10.2
 captcha==0.7.1
+pillow==11.1.0

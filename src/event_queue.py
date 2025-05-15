@@ -91,11 +91,13 @@ def add_task(timestamps, default, conditional_funcs=None):
     return key
 
 
-def cancel_task(key):
+def cancel_task(key, silently=False):
     if key in EVENTS:
         EVENTS[key]["cancelled"] = True
         cond = EVENTS[key].get("conditional_funcs", {})
         logger.debug("⛔ Canceling task: %s", key)
+        if silently:
+            return
 
         if "on_cancel" in cond:
             func = cond["on_cancel"]["func"]
@@ -124,7 +126,6 @@ def tick():
             remove_keys.append(key)
             continue
 
-        event["offset"] += 1
         offset = event["offset"]
 
         while event["sub_events"] and event["sub_events"][0]["timestamp"] <= offset:
@@ -133,6 +134,8 @@ def tick():
                 next_event["action"]()
             except Exception as e:
                 logger.exception("Event key=%s failed: %s", key, e)
+
+        event["offset"] += 1
 
         if not event["sub_events"]:
             remove_keys.append(key)
@@ -170,3 +173,7 @@ def stop_ticking():
     TICK_THREAD_STOP.set()
     TICK_JOB_RUNNING = False
     logger.debug("Stopped ticking thread since no events remain")
+
+
+def is_thread_running():
+    return TICK_JOB_RUNNING

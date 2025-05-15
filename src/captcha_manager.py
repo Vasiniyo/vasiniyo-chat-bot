@@ -3,6 +3,7 @@ import logging
 import random
 import string
 
+from PIL import Image, ImageOps
 from captcha.image import ImageCaptcha
 
 from config import bot, captcha_properties
@@ -13,22 +14,42 @@ CAPTCHA_USERS = {}
 
 
 # ==================================== CAPTHA GEN ============================================
-def generate_captcha_text(length=None):
-    length = length or captcha_properties["length"]
-    return "".join(random.choices(string.ascii_letters + string.digits, k=length))
+_raw_banned = captcha_properties["gen"]["banned_symbols"]
+_BANNED = {c.lower() for c in _raw_banned} | {c.upper() for c in _raw_banned}
+_ALLOWED_SYMBOLS = [
+    c for c in (string.ascii_letters + string.digits) if c not in _BANNED
+]
+
+
+def generate_captcha_text():
+    """Return a random captcha string of the requested length."""
+    length = captcha_properties["gen"]["length"]
+    return "".join(random.choices(_ALLOWED_SYMBOLS, k=length))
 
 
 def generate_captcha_image(text):
-    img = ImageCaptcha()
-    return BytesIO(img.generate(text).read())
+    props = captcha_properties["gen"]
+    img = ImageCaptcha(fonts=[props["font_path"]])
+    img.character_rotate = (-props["max_rotation"], props["max_rotation"])
+    image = Image.open(img.generate(text))
+    padded = ImageOps.expand(
+        image,
+        border=(0, props["margins_width"], 0, props["margins_width"]),
+        fill=props["margins_color"],
+    )
+
+    buf = BytesIO()
+    padded.save(buf, format="PNG")
+    buf.seek(0)
+    return buf
 
 
 # ==================================== MSG UPDATES ============================================
 def build_caption(time_left, failed_attempts):
-    total_time = captcha_properties["timer"]
-    attempts_left = max(0, captcha_properties["attempts"] - failed_attempts)
+    total_time = captcha_properties["validate"]["timer"]
+    attempts_left = max(0, captcha_properties["validate"]["attempts"] - failed_attempts)
     elapsed = total_time - time_left
-    bar_len = captcha_properties["bar_length"]
+    bar_len = captcha_properties["validate"]["bar_length"]
     filled = min(bar_len, int((elapsed / total_time) * bar_len))
     bar = "[" + "=" * filled + ">" + " " * (bar_len - filled - 1) + "]"
     pct = int((elapsed / total_time) * 100)
@@ -43,15 +64,18 @@ def update_captcha_message(user_id):
     user = CAPTCHA_USERS.get(user_id)
     if not user or user["message_id"] is None:
         logger.info(
-            f"Tried UPDATE_CAPTCHA_MESSAGE for the user {user_id}, but could not find them"
+            "Tried UPDATE_CAPTCHA_MESSAGE for the user %s, but could not find them",
+            user_id,
         )
         return
 
-    user["time_left"] = max(0, user["time_left"] - captcha_properties["update_freq"])
+    user["time_left"] = max(
+        0, user["time_left"] - captcha_properties["validate"]["update_freq"]
+    )
     new_caption = build_caption(user["time_left"], user["failed_attempts"])
 
     if new_caption == user.get("last_caption"):
-        logger.debug(f"Skipping update: caption unchanged for user {user_id}")
+        logger.debug("Skipping update: caption unchanged for user %s", user_id)
         return
 
     # WARN if buttons are added to the message, this
@@ -67,14 +91,15 @@ def fail_user(user_id, reason="Time is up"):
     user = CAPTCHA_USERS.pop(user_id, None)
     if not user:
         logger.info(
-            "Tried calling FAIL_USER %s for the reason %s, but counld not find them".format(
-                user_id, reason
-            )
+            "Tried calling FAIL_USER %s for the reason %s, but counld not find them",
+            user_id,
+            reason,
         )
         return
 
-    logger.info(
-        "Failing user %s in chat %s: %s".format(user_id, user["chat_id"], reason)
+    logger.info("Failing user %s in chat %s: %s", user_id, user["chat_id"], reason)
+    user["time_left"] = max(
+        0, user["time_left"] - captcha_properties["validate"]["update_freq"]
     )
     caption = (
         build_caption(user["time_left"], user["failed_attempts"]) + f"\n❌ {reason}"
@@ -90,11 +115,7 @@ def fail_user(user_id, reason="Time is up"):
 def pass_user(user_id, user_input):
     user = CAPTCHA_USERS.get(user_id)
     if not user:
-        logger.info(
-            "Tried calling PASS_USER %s for the reason %s, but counld not find them".format(
-                user_id, reason
-            )
-        )
+        logger.info("Tried calling PASS_USER %s, but counld not find them", user_id)
         return
 
     task_id = user.get("eq_key")
@@ -104,12 +125,13 @@ def pass_user(user_id, user_input):
     if user["message_id"]:
         bot.delete_message(user["chat_id"], user["message_id"])
     if task_id:
-        cancel_task(task_id)
+        cancel_task(task_id, silently=True)
 
     logger.info(
-        "User %s passed captcha in chat %s, answer='%s'".format(
-            user_id, user["chat_id"], user_input
-        )
+        "User %s passed captcha in chat %s, answer='%s'",
+        user_id,
+        user["chat_id"],
+        user_input,
     )
 
 
@@ -117,17 +139,19 @@ def on_failed_attempt(user_id, user_input):
     user = CAPTCHA_USERS.get(user_id)
     if not user:
         logger.info(
-            f"Tried to issue FAILED_ATTEMPT for the user {user_id}, but could not find them"
+            "Tried to issue FAILED_ATTEMPT for the user %s, but could not find them",
+            user_id,
         )
         return
 
     user["failed_attempts"] += 1
     logger.info(
-        "User %s attempt failed, got '%s', expected='%s'".format(
-            user_id, user_input, user["answer"]
-        )
+        "User %s attempt failed, got '%s', expected='%s'",
+        user_id,
+        user_input,
+        user["answer"],
     )
-    if user["failed_attempts"] >= captcha_properties["attempts"]:
+    if user["failed_attempts"] >= captcha_properties["validate"]["attempts"]:
         fail_user(user_id, reason="Max attempts used")
     else:
         update_captcha_message(user_id)
@@ -150,7 +174,7 @@ def handle_new_user(message):
             "eq_key": None,  # to be filled later (down below)
             "message_id": None,  # to be filled when the message is isses
             "failed_attempts": 0,
-            "time_left": captcha_properties["timer"],
+            "time_left": captcha_properties["validate"]["timer"],
             "image": image,
             "answer": text,
         }
@@ -159,7 +183,7 @@ def handle_new_user(message):
         eq_key = queue_captcha_updates(user_id)
         CAPTCHA_USERS[user_id]["eq_key"] = eq_key
 
-        logger.info("New user %s got capcha text %s".format(user_id, text))
+        logger.info("New user %s got capcha text %s", user_id, text)
 
 
 def handle_verify_captcha(message):
@@ -167,7 +191,8 @@ def handle_verify_captcha(message):
     user = CAPTCHA_USERS.get(user_id)
     if not user:
         logger.info(
-            f"Tried HANDLE_VERIFY_CAPTCHA for the user {user_id}, but could not find them"
+            "Tried HANDLE_VERIFY_CAPTCHA for the user %s, but could not find them",
+            user_id,
         )
         return
 
@@ -187,13 +212,13 @@ def handle_user_left(message):
     logger.info("User left mid-captcha, processing...")
     user_id = message.left_chat_member.id
     user = CAPTCHA_USERS.pop(user_id, None)
-    logger.info(f"\t{user_id}, {user}")
+    logger.info("\t%s, %s", user_id, user)
     if user:
         eq_key = user.get("eq_key")
         if eq_key:
             cancel_task(eq_key)
         logger.info(
-            f"User {user_id} left mid-captcha. Cancelled scheduled CAPTCHA task."
+            "User %s left mid-captcha. Cancelled scheduled CAPTCHA task.", user_id
         )
 
 
@@ -202,13 +227,14 @@ def queue_captcha_updates(user_id):
     user = CAPTCHA_USERS.get(user_id)
     if not user:
         logger.info(
-            f"Tried QUEUE_CAPTCHA_UPDATES for the user {user_id}, but could not find them"
+            "Tried QUEUE_CAPTCHA_UPDATES for the user %s, but could not find them",
+            user_id,
         )
         return None
 
-    total = captcha_properties["timer"]
-    freq = captcha_properties["update_freq"]
-    timestamps = list(range(freq, total + 1, freq))
+    total = captcha_properties["validate"]["timer"]
+    freq = captcha_properties["validate"]["update_freq"]
+    timestamps = list(range(freq, total, freq))
 
     task_id = add_task(
         timestamps=timestamps,
@@ -225,7 +251,8 @@ def send_initial_captcha(user_id):
     user = CAPTCHA_USERS.get(user_id)
     if not user:
         logger.info(
-            f"Tried SEND_INITIAL_CAPTCHA for the user {user_id}, but could not find them"
+            "Tried SEND_INITIAL_CAPTCHA for the user %s, but could not find them",
+            user_id,
         )
         return
 
