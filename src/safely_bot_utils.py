@@ -65,7 +65,7 @@ reply_with_user_links = lambda text: reply_to(
 
 def to_link_user(user):
     if user is None:
-        return phrases["unknown_user"]
+        return phrases("unknown_user")
     if not (user.username is None):
         return f"{user.first_name} ([{user.username}](t.me/{user.username}))"
     return f"{user.first_name}"
@@ -84,9 +84,10 @@ def daily_hash(user_id):
     return key
 
 
-get_user_name = lambda chat_id, user_id: (
-    to_link_user(get_chat_member(chat_id, user_id).user)
-)
+def get_user_name(chat_id, user_id):
+    member = get_chat_member(chat_id, user_id)
+    user = member.user if member is not None else None
+    return to_link_user(user)
 
 
 def reply_top(fetch, chat_id, header):

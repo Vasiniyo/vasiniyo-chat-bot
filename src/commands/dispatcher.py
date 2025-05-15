@@ -56,7 +56,7 @@ COMMANDS = {
     "anime": (handle_anime, phrases("anime_help")),
     "top_espers": (handle_top_espers, phrases("top_espers_help")),
     "top_likes": (handle_top_likes, phrases("top_likes_help")),
-    "like": (handle_top_likes, phrases("like_help")),
+    "like": (handle_like, phrases("like_help")),
     "rename": (prepare_game, phrases("rename_help")),
     "reg": (start, phrases("reg_help")),
     "drink_or_not": (handle_drink_or_not(drinks), phrases("drink_or_not_help")),
