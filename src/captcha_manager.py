@@ -72,10 +72,7 @@ def update_captcha_message(user_id):
         )
         return
 
-    event_time_left = (
-        captcha_properties["validate"]["timer"] - EVENTS[user["eq_key"]]["offset"]
-    )
-    user["time_left"] = max(0, event_time_left)
+    update_captcha_time_left(user)
     new_caption = build_caption(user["time_left"], user["failed_attempts"])
 
     if new_caption == user.get("last_caption"):
@@ -255,7 +252,7 @@ def queue_captcha_updates(user_id):
 
     total = user["time_left"]
     freq = captcha_properties["validate"]["update_freq"]
-    timestamps = list(range(freq, total, freq))
+    timestamps = list(range(freq, total + 1, freq))
 
     task_id = add_task(
         timestamps=timestamps,
@@ -298,6 +295,7 @@ def regenerate_captcha(user_id):
     new_data = {"image": image, "answer": text}
 
     captcha.update(new_data)
+    update_captcha_time_left(captcha)
     caption = build_caption(captcha["time_left"], captcha["failed_attempts"])
 
     bot.edit_message_media(
@@ -308,3 +306,10 @@ def regenerate_captcha(user_id):
     )
 
     logger.info("Captcha updated for user %s, new capcha text %s", user_id, text)
+
+
+def update_captcha_time_left(captcha):
+    timer = captcha_properties["validate"]["timer"]
+    event_offset = EVENTS.get(captcha["eq_key"], {}).get("offset", timer)
+    event_time_left = timer - event_offset
+    captcha["time_left"] = max(0, event_time_left)
