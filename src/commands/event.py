@@ -17,15 +17,24 @@ def play(message):
     event_id = esper_event_id
     chat_id = message.chat.id
     players = get_players(chat_id)
-    day_passed = is_day_passed(chat_id, event_id)
-    if day_passed == 1 or day_passed is None:
+
+    def _find_next_winner():
         winner = random.choice(players)
         commit_win(chat_id, winner.id, event_id)
-        answer = phrases("play_select", bot.to_link_user(winner))
+        return phrases("play_select", bot.to_link_user(winner))
+
+    if len(players) == 0:
+        return bot.reply_to(phrases("play_zero_players"))(message)
+    day_passed = is_day_passed(chat_id, event_id)
+    if day_passed == 1 or day_passed is None:
+        answer = _find_next_winner()
     else:
         winner_id = get_last_winner(chat_id, event_id)
-        winner = next(filter(lambda p: p.id == winner_id, players))
-        answer = phrases("play_already_selected", bot.to_link_user(winner))
+        winner = next(filter(lambda p: p.id == winner_id, players), None)
+        if winner:
+            answer = phrases("play_already_selected", bot.to_link_user(winner))
+        else:
+            answer = _find_next_winner()
     return bot.reply_with_user_links(answer)(message)
 
 
