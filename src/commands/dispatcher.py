@@ -50,6 +50,7 @@ message_ok = lambda t: lambda m: head(choice_one_match(m.text, t.keys()))
 sticker_ok = lambda t: lambda m: m.sticker.file_id in t.keys()
 cmd_ok = lambda m: is_cmd_for_bot(split_cmd(m))
 cmd_no_ok = lambda m: unknown_cmd(split_cmd(m))
+is_captcha_user = lambda m: m.from_user.id in CAPTCHA_USERS
 
 COMMANDS = {
     "help": (None, phrases("help_help")),
@@ -73,27 +74,30 @@ laplace_cdf = lambda L: lambda M: lambda x: (
 # scales values between 0 and maximal allowed message length in telegram
 scaler = lambda x: x / 4096
 probability = laplace_cdf(scaler(MESSAGE_MAX_LEN / 2))(scaler(MESSAGE_MAX_LEN * 2))
+is_long_message = lambda m: random() <= probability(scaler(len(m.text)))
 
 handle_cmd = lambda m: head(COMMANDS[cmd_name(m)])(m)
+
+handler = lambda func, commands=None, content_types=None: {
+    "func": chat_ok(func),
+    "commands": commands,
+    "content_types": content_types,
+}
+
 handlers = {
-    handle_cmd: {"func": chat_ok(cmd_ok), "commands": list(COMMANDS.keys())},
-    handle_unknown(phrases("unknown_command")): {"func": chat_ok(cmd_no_ok)},
-    handle_long(long_message): {
-        "func": chat_ok(lambda m: random() <= probability(scaler(len(m.text))))
-    },
-    handle_text_to_sticker(text_to_sticker): {
-        "func": chat_ok(message_ok(text_to_sticker))
-    },
-    handle_text_to_text(text_to_text): {"func": chat_ok(message_ok(text_to_text))},
-    handle_stickers(sticker_to_sticker): {
-        "func": chat_ok(sticker_ok(sticker_to_sticker)),
-        "content_types": ["sticker"],
-    },
-    handle_new_user: {
-        "func": lambda m: bool(getattr(m, "new_chat_members", None)),
-        "content_types": ["new_chat_members"],
-    },
-    handle_verify_captcha: {"func": lambda m: m.from_user.id in CAPTCHA_USERS},
+    handle_cmd: handler(cmd_ok, commands=list(COMMANDS.keys())),
+    handle_unknown: handler(cmd_no_ok),
+    handle_long(long_message): handler(is_long_message),
+    handle_text_to_sticker(text_to_sticker): handler(message_ok(text_to_sticker)),
+    handle_text_to_text(text_to_text): handler(message_ok(text_to_text)),
+    handle_stickers(sticker_to_sticker): handler(
+        sticker_ok(sticker_to_sticker), content_types=["sticker"]
+    ),
+    handle_new_user: handler(
+        lambda m: bool(getattr(m, "new_chat_members", None)),
+        content_types=["new_chat_members"],
+    ),
+    handle_verify_captcha: handler(is_captcha_user),
 }
 
 inline_handlers = {handle_inline_help(COMMANDS): {lambda query: query.query == ""}}

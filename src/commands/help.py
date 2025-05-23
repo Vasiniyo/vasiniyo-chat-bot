@@ -24,4 +24,4 @@ def handle_inline_help(commands):
     return bot.answer_inline_query(inline_results)
 
 
-handle_unknown = bot.reply_to
+handle_unknown = bot.reply_to(phrases("unknown_command"))
