@@ -3,6 +3,7 @@ from random import random
 
 from captcha_manager import (
     CAPTCHA_USERS,
+    handle_captcha_button_press,
     handle_new_user,
     handle_user_left,
     handle_verify_captcha,
@@ -101,5 +102,8 @@ inline_handlers = {handle_inline_help(COMMANDS): {lambda query: query.query == "
 query_handlers = {
     handle_title_change_attempt: {
         "func": lambda call: chat_ok(call.message) and call.data.startswith("number_")
-    }
+    },
+    handle_captcha_button_press: {
+        "func": lambda call: chat_ok(call.message) and call.data.startswith("captcha_")
+    },
 }

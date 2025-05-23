@@ -5,12 +5,15 @@ import string
 
 from PIL import Image, ImageOps
 from captcha.image import ImageCaptcha
+from telebot import types
 
-from config import bot, captcha_properties
-from event_queue import add_task, cancel_task
+from config import bot, captcha_properties, greeting_message, phrases
+from event_queue import EVENTS, add_task, cancel_task
 
 logger = logging.getLogger(__name__)
+
 CAPTCHA_USERS = {}
+GREETING_MESSAGE = greeting_message
 
 
 # ==================================== CAPTHA GEN ============================================
@@ -69,9 +72,10 @@ def update_captcha_message(user_id):
         )
         return
 
-    user["time_left"] = max(
-        0, user["time_left"] - captcha_properties["validate"]["update_freq"]
+    event_time_left = (
+        captcha_properties["validate"]["timer"] - EVENTS[user["eq_key"]]["offset"]
     )
+    user["time_left"] = max(0, event_time_left)
     new_caption = build_caption(user["time_left"], user["failed_attempts"])
 
     if new_caption == user.get("last_caption"):
@@ -82,7 +86,10 @@ def update_captcha_message(user_id):
     # (probably) should also keep the state of those
     user["last_caption"] = new_caption
     bot.edit_message_caption(
-        chat_id=user["chat_id"], message_id=user["message_id"], caption=new_caption
+        chat_id=user["chat_id"],
+        message_id=user["message_id"],
+        caption=new_caption,
+        reply_markup=user["reply_markup"],
     )
 
 
@@ -122,6 +129,8 @@ def pass_user(user_id, user_input):
     CAPTCHA_USERS.pop(user_id, None)
     # TODO: queue this for deletion (and user's final answer')
     bot.send_message(user["chat_id"], "✅ You passed!")
+    bot.send_message(user["chat_id"], GREETING_MESSAGE)
+
     if user["message_id"]:
         bot.delete_message(user["chat_id"], user["message_id"])
     if task_id:
@@ -222,6 +231,18 @@ def handle_user_left(message):
         )
 
 
+def handle_captcha_button_press(call):
+    user_id = call.from_user.id
+
+    if not CAPTCHA_USERS.get(user_id):
+        return bot.answer_callback_query(
+            call.id, text=phrases("roll_not_yours"), cache_time=3
+        )
+
+    regenerate_captcha(user_id)
+    bot.answer_callback_query(call.id, cache_time=3)
+
+
 # ================================= UTILS =========================================
 def queue_captcha_updates(user_id):
     user = CAPTCHA_USERS.get(user_id)
@@ -232,7 +253,7 @@ def queue_captcha_updates(user_id):
         )
         return None
 
-    total = captcha_properties["validate"]["timer"]
+    total = user["time_left"]
     freq = captcha_properties["validate"]["update_freq"]
     timestamps = list(range(freq, total, freq))
 
@@ -256,7 +277,34 @@ def send_initial_captcha(user_id):
         )
         return
 
+    button = types.InlineKeyboardButton(
+        text="Update captcha 🔄", callback_data="captcha_button"
+    )
+    markup = types.InlineKeyboardMarkup(keyboard=[[button]])
     caption = build_caption(user["time_left"], user["failed_attempts"])
-    msg = bot.send_photo(user["chat_id"], photo=user["image"], caption=caption)
+    msg = bot.send_photo(
+        user["chat_id"], photo=user["image"], caption=caption, reply_markup=markup
+    )
     user["message_id"] = msg.message_id
     user["last_caption"] = caption
+    user["reply_markup"] = markup
+
+
+def regenerate_captcha(user_id):
+    captcha = CAPTCHA_USERS[user_id]
+    text = generate_captcha_text()
+    image = generate_captcha_image(text)
+
+    new_data = {"image": image, "answer": text}
+
+    captcha.update(new_data)
+    caption = build_caption(captcha["time_left"], captcha["failed_attempts"])
+
+    bot.edit_message_media(
+        media=types.InputMediaPhoto(captcha["image"], caption, "HTML"),
+        chat_id=captcha["chat_id"],
+        message_id=captcha["message_id"],
+        reply_markup=captcha["reply_markup"],
+    )
+
+    logger.info("Captcha updated for user %s, new capcha text %s", user_id, text)
