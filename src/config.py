@@ -16,6 +16,7 @@ api_token = os.environ.get("BOT_API_TOKEN")
 if not api_token:
     print("BOT_API_TOKEN is not set")
     exit(1)
+
 bot = telebot.TeleBot(api_token)
 
 decembrist_stickers = {
@@ -28,6 +29,12 @@ captcha_properties = {
     "gen": config["captcha_properties"]["gen"],
     "validate": config["captcha_properties"]["validate"],
 }
+
+greeting_message = (
+    config.get("welcome_message_for_new_members")
+    + "\n\n"
+    + config.get("link_to_latest_project")
+)
 
 stickers = {
     sticker_name: decembrist_stickers.get(unique_file_id)
