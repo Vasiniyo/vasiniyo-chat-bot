@@ -15,12 +15,16 @@ if __name__ == "__main__":
 
     for handler, args in handlers.items():
         bot.message_handler(**args)(handler)
+
     for handler, args in inline_handlers.items():
         bot.inline_handler(*args)(handler)
+
     for handler, args in query_handlers.items():
         bot.callback_query_handler(**args)(handler)
+
     bot.set_my_commands([BotCommand(cmd, desc[1]) for cmd, desc in COMMANDS.items()])
     bot.delete_webhook(drop_pending_updates=True)
+
     while True:
         try:
             bot.polling()
