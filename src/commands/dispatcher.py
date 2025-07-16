@@ -75,7 +75,7 @@ laplace_cdf = lambda L: lambda M: lambda x: (
 # scales values between 0 and maximal allowed message length in telegram
 scaler = lambda x: x / 4096
 probability = laplace_cdf(scaler(MESSAGE_MAX_LEN / 2))(scaler(MESSAGE_MAX_LEN * 2))
-is_long_message = lambda m: random() <= probability(scaler(len(m.text)))
+is_long_message = lambda m: len(m.text) > 100 and random() <= probability(scaler(len(m.text))) / 2.0
 
 handle_cmd = lambda m: head(COMMANDS[cmd_name(m)])(m)
 
