@@ -1,15 +1,19 @@
 import random
 
-from config import MESSAGE_MAX_LEN
+from commands.fuzzy_match.fuzzy_match import choice_one_match
+from commands.utils import handler, head
+from config import text_to_sticker, text_to_text
 import safely_bot_utils as bot
 
-from .fuzzy_match.fuzzy_match import choice_one_match
+from ..register import reg_handler
+
+message_ok = lambda t: lambda m: head(choice_one_match(m.text, t.keys()))
 
 
-def handle_long(answers):
-    return lambda m: bot.reply_to(random.choice(answers))(m)
+# ========== HANDLERS =========================================================
 
 
+@reg_handler(handler(message_ok(text_to_text)), text_to_text)
 def handle_text_to_text(answers):
     def inner(message):
         matched_key, reply, used_inverted = __get_response(message, answers)
@@ -20,8 +24,12 @@ def handle_text_to_text(answers):
     return inner
 
 
+@reg_handler(handler(message_ok(text_to_sticker)), text_to_sticker)
 def handle_text_to_sticker(answers):
     return lambda m: bot.send_sticker(__get_response(m, answers)[1])(m)
+
+
+# ========== private functions ================================================
 
 
 def __get_response(message, answers):

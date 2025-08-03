@@ -1,8 +1,11 @@
 import random
 
-from config import phrases
+from commands.how_much import handle_how_much
+from config import espers, phrases
 from database.events import commit_win, fetch_top, get_last_winner, is_day_passed
 import safely_bot_utils as bot
+
+from ..register import reg_command
 
 esper_event_id = 0
 
@@ -13,6 +16,10 @@ def get_players(chat_id):
     return list(map(lambda a: a.user, players))
 
 
+# ========== COMMANDS =========================================================
+
+
+@reg_command("play", phrases("play_help"))
 def play(message):
     event_id = esper_event_id
     chat_id = message.chat.id
@@ -25,7 +32,9 @@ def play(message):
 
     if len(players) == 0:
         return bot.reply_to(phrases("play_zero_players"))(message)
+
     day_passed = is_day_passed(chat_id, event_id)
+
     if day_passed == 1 or day_passed is None:
         answer = _find_next_winner()
     else:
@@ -38,6 +47,7 @@ def play(message):
     return bot.reply_with_user_links(answer)(message)
 
 
+@reg_command("players", phrases("players_help"))
 def send_players(message):
     answer = "\n".join(
         f"{i + 1}. {username}"
@@ -48,9 +58,15 @@ def send_players(message):
     bot.reply_with_user_links(answer)(message)
 
 
+@reg_command("top_espers", phrases("top_espers_help"))
 def handle_top_espers(message):
     bot.reply_top(
         lambda: fetch_top(message.chat.id, esper_event_id, 10),
         message.chat.id,
         phrases("top_espers_header"),
     )(message)
+
+
+@reg_command("how_much_esper", phrases("how_much_esper_help"), espers)
+def how_much_esper(source):
+    return handle_how_much(source)

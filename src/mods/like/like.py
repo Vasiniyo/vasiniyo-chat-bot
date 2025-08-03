@@ -4,7 +4,12 @@ from config import bot, phrases
 from database.likes import add_like, count_likes, fetch_top
 import safely_bot_utils as bot
 
+from ..register import reg_command
 
+# ========== COMMANDS =========================================================
+
+
+@reg_command("top_likes", phrases("top_likes_help"))
 def handle_top_likes(message):
     bot.reply_top(
         lambda: fetch_top(message.chat.id, 10),
@@ -13,6 +18,7 @@ def handle_top_likes(message):
     )(message)
 
 
+@reg_command("like", phrases("like_help"))
 def handle_like(message):
     if reply_to_message := message.reply_to_message:
         from_user = message.from_user

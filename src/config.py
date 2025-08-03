@@ -8,6 +8,27 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] > %(message)s"
 )
 
+EMPTY = None
+is_submenu_empty = lambda pair: (
+    pair[1] is None if isinstance(pair, (tuple, list)) else pair is None
+)
+
+# to maintain a specific menu order
+# Anything added outside of this list will be placed in an unaccounted order
+MAIN_MENU = {
+    "help": EMPTY,
+    "anime": EMPTY,
+    "top_espers": EMPTY,
+    "top_likes": EMPTY,
+    "like": EMPTY,
+    "rename": EMPTY,
+    "reg": EMPTY,
+    "drink_or_not": EMPTY,
+    "how_much_esper": EMPTY,
+    "players": EMPTY,
+    "play": EMPTY,
+}
+
 allowed_chats = os.environ.get("ACCESS_ID_GROUP", "*").split(";")
 if len(allowed_chats) == 1 and allowed_chats[0] == "":
     allowed_chats.append("*")
@@ -25,16 +46,6 @@ decembrist_stickers = {
 }
 
 config = toml.load("config.toml")
-captcha_properties = {
-    "gen": config["captcha_properties"]["gen"],
-    "validate": config["captcha_properties"]["validate"],
-}
-
-greeting_message = (
-    config.get("welcome_message_for_new_members")
-    + "\n\n"
-    + config.get("link_to_latest_project")
-)
 
 stickers = {
     sticker_name: decembrist_stickers.get(unique_file_id)
@@ -65,13 +76,16 @@ text_to_sticker = {
     key: to_sticker_list(value) for key, value in config.get("text_to_sticker").items()
 }
 text_to_text = expand_templates(config.get("text_to_text"))
+
 long_message = config.get("long_message").get("long_message")
 MESSAGE_MAX_LEN = config.get("long_message").get("message_max_len")
+
 adjectives = config.get("custom-titles").get("adjectives")
 nouns = config.get("custom-titles").get("nouns")
 drinks = config.get("drink-or-not")
 espers = config.get("how-much-espers")
 lang = config.get("lang") or "ru"
+
 
 from locale import locale
 
