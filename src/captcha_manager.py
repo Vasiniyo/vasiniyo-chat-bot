@@ -172,6 +172,10 @@ def handle_new_user(message):
         user_id = member.id
         chat_id = message.chat.id
 
+        if member.is_bot:
+            logger.info("New user %s is a bot, skipping...", user_id)
+            continue
+
         text = generate_captcha_text()
         image = generate_captcha_image(text)
 
