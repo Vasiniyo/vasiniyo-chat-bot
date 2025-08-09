@@ -7,16 +7,30 @@ from PIL import Image, ImageOps
 from captcha.image import ImageCaptcha
 from telebot import types
 
-from config import bot, captcha_properties, greeting_message, phrases
+from commands.utils import chat_ok, handler
+from config import bot, config, phrases
 from event_queue import EVENTS, add_task, cancel_task
+
+from ..register import reg_handler, reg_query_handler
 
 logger = logging.getLogger(__name__)
 
 CAPTCHA_USERS = {}
-GREETING_MESSAGE = greeting_message
+
+GREETING_MESSAGE = (
+    config.get("welcome_message_for_new_members")
+    + "\n\n"
+    + config.get("link_to_latest_project")
+)
+
+captcha_properties = {
+    "gen": config["captcha_properties"]["gen"],
+    "validate": config["captcha_properties"]["validate"],
+}
 
 
 # ==================================== CAPTHA GEN ============================================
+
 _raw_banned = captcha_properties["gen"]["banned_symbols"]
 _BANNED = {c.lower() for c in _raw_banned} | {c.upper() for c in _raw_banned}
 _ALLOWED_SYMBOLS = [
@@ -48,6 +62,8 @@ def generate_captcha_image(text):
 
 
 # ==================================== MSG UPDATES ============================================
+
+
 def build_caption(time_left, failed_attempts):
     total_time = captcha_properties["validate"]["timer"]
     attempts_left = max(0, captcha_properties["validate"]["attempts"] - failed_attempts)
@@ -91,6 +107,8 @@ def update_captcha_message(user_id):
 
 
 # ================================= CAPTCHA OUTCOMES =========================================
+
+
 def fail_user(user_id, reason="Time is up"):
     user = CAPTCHA_USERS.pop(user_id, None)
     if not user:
@@ -164,6 +182,14 @@ def on_failed_attempt(user_id, user_input):
 
 
 # ================================= HANDLERS =========================================
+
+
+@reg_handler(
+    handler(
+        lambda m: bool(getattr(m, "new_chat_members", None)),
+        content_types=["new_chat_members"],
+    )
+)
 def handle_new_user(message):
     if not getattr(message, "new_chat_members", None):
         return
@@ -192,6 +218,7 @@ def handle_new_user(message):
         logger.info("New user %s got capcha text %s", user_id, text)
 
 
+@reg_handler(handler(lambda m: m.from_user.id in CAPTCHA_USERS))
 def handle_verify_captcha(message):
     user_id = message.from_user.id
     user = CAPTCHA_USERS.get(user_id)
@@ -228,6 +255,9 @@ def handle_user_left(message):
         )
 
 
+@reg_query_handler(
+    func=lambda call: chat_ok(call.message) and call.data.startswith("captcha_")
+)
 def handle_captcha_button_press(call):
     user_id = call.from_user.id
 
@@ -241,6 +271,8 @@ def handle_captcha_button_press(call):
 
 
 # ================================= UTILS =========================================
+
+
 def queue_captcha_updates(user_id):
     user = CAPTCHA_USERS.get(user_id)
     if not user:

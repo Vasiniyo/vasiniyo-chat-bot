@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+from commands.utils import chat_ok
 from config import adjectives, nouns, phrases
 from database.titles import (
     commit_dice_roll,
@@ -12,6 +13,8 @@ from database.titles import (
     is_user_has_title,
 )
 import safely_bot_utils as bot
+
+from ..register import reg_command, reg_handler, reg_query_handler
 
 random_title = lambda: f"{random.choice(adjectives)} {random.choice(nouns)}"
 
@@ -96,7 +99,11 @@ def handle_cant_roll(callback, user_id, message):
     return True
 
 
+# ========== COMMANDS =========================================================
+
+
 # when user call /reg
+@reg_command("reg", phrases("reg_help"))
 def start(message):
     chat_id = message.chat.id
     user_id = message.from_user.id
@@ -111,6 +118,7 @@ def start(message):
 
 
 # when user call /rename
+@reg_command("rename", phrases("rename_help"))
 def prepare_game(msg):
     if handle_cant_roll(bot.reply_to, msg.from_user.id, msg):
         return
@@ -118,7 +126,13 @@ def prepare_game(msg):
     propose(InlineKeyboardMarkup().row(*buttons))(msg)
 
 
+# ========== HANDLERS =========================================================
+
+
 # handle the event, when user press button in game
+@reg_query_handler(
+    func=lambda call: chat_ok(call.message) and call.data.startswith("number_")
+)
 def handle_title_change_attempt(call):
     number, user_id = parse_callback_data(call)
     if user_id != call.from_user.id:

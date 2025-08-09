@@ -5,7 +5,12 @@ import requests
 from config import phrases
 import safely_bot_utils as bot
 
+from ..register import reg_command
 
+# ========== COMMANDS =========================================================
+
+
+@reg_command("anime", phrases("anime_help"))
 def handle_anime(message):
     response = requests.get(
         "https://shikimori.one/api/animes",
