@@ -73,6 +73,20 @@ drinks = config.get("drink-or-not")
 espers = config.get("how-much-espers")
 lang = config.get("lang") or "ru"
 
+
+def check_mods(handlers):
+    res = {}
+
+    for mod in handlers:
+        if mod not in config["mods"]:
+            logging.warning(f"Module [{mod}] is not included")
+        else:
+            for key, value in handlers[mod].items():
+                res[key] = value
+
+    return res
+
+
 from locale import locale
 
 
