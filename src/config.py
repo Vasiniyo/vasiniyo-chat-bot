@@ -73,6 +73,37 @@ drinks = config.get("drink-or-not")
 espers = config.get("how-much-espers")
 lang = config.get("lang") or "ru"
 
+
+_include_mods = (
+    "core",
+    # commands
+    "anime",
+    "event",
+    "likes",
+    "how_much",
+    "roll_title",
+    "drink_or_not",
+    # handlers
+    "reply",
+    "captcha",
+    "long_message",
+)
+
+
+def check_mods(*args):
+    res = {}
+
+    for arg in args:
+        if len(arg) != 3:
+            logging.error(f"Invalid argument format: {arg}")
+        elif arg[0] not in _include_mods:
+            logging.warning(f"Module {arg[0]} is not included")
+        else:
+            res[arg[1]] = arg[2]
+
+    return res
+
+
 from locale import locale
 
 
