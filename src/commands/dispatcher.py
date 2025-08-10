@@ -20,6 +20,7 @@ from commands.text import handle_long, handle_text_to_sticker, handle_text_to_te
 from config import (
     MESSAGE_MAX_LEN,
     allowed_chats,
+    check_mods,
     drinks,
     espers,
     long_message,
@@ -53,19 +54,31 @@ cmd_ok = lambda m: is_cmd_for_bot(split_cmd(m))
 cmd_no_ok = lambda m: unknown_cmd(split_cmd(m))
 is_captcha_user = lambda m: m.from_user.id in CAPTCHA_USERS
 
-COMMANDS = {
-    "help": (None, phrases("help_help")),
-    "anime": (handle_anime, phrases("anime_help")),
-    "top_espers": (handle_top_espers, phrases("top_espers_help")),
-    "top_likes": (handle_top_likes, phrases("top_likes_help")),
-    "like": (handle_like, phrases("like_help")),
-    "rename": (prepare_game, phrases("rename_help")),
-    "reg": (start, phrases("reg_help")),
-    "drink_or_not": (handle_drink_or_not(drinks), phrases("drink_or_not_help")),
-    "how_much_esper": (handle_how_much(espers), phrases("how_much_esper_help")),
-    "players": (send_players, phrases("players_help")),
-    "play": (play, phrases("play_help")),
-}
+COMMANDS = check_mods(
+    {
+        "core": {"help": (None, phrases("help_help"))},
+        "anime": {"anime": (handle_anime, phrases("anime_help"))},
+        "likes": {
+            "top_likes": (handle_top_likes, phrases("top_likes_help")),
+            "like": (handle_like, phrases("like_help")),
+        },
+        "roll_title": {
+            "rename": (prepare_game, phrases("rename_help")),
+            "reg": (start, phrases("reg_help")),
+        },
+        "drink_or_not": {
+            "drink_or_not": (handle_drink_or_not(drinks), phrases("drink_or_not_help"))
+        },
+        "how_much": {
+            "how_much_esper": (handle_how_much(espers), phrases("how_much_esper_help"))
+        },
+        "event": {
+            "top_espers": (handle_top_espers, phrases("top_espers_help")),
+            "players": (send_players, phrases("players_help")),
+            "play": (play, phrases("play_help")),
+        },
+    }
+)
 COMMANDS["help"] = (handle_help(COMMANDS), COMMANDS["help"][1])
 
 laplace_cdf = lambda L: lambda M: lambda x: (
@@ -87,29 +100,40 @@ handler = lambda func, commands=None, content_types=None: {
     "content_types": content_types,
 }
 
-handlers = {
-    handle_cmd: handler(cmd_ok, commands=list(COMMANDS.keys())),
-    handle_unknown: handler(cmd_no_ok),
-    handle_long(long_message): handler(is_long_message),
-    handle_text_to_sticker(text_to_sticker): handler(message_ok(text_to_sticker)),
-    handle_text_to_text(text_to_text): handler(message_ok(text_to_text)),
-    handle_stickers(sticker_to_sticker): handler(
-        sticker_ok(sticker_to_sticker), content_types=["sticker"]
-    ),
-    handle_new_user: handler(
-        lambda m: bool(getattr(m, "new_chat_members", None)),
-        content_types=["new_chat_members"],
-    ),
-    handle_verify_captcha: handler(is_captcha_user),
-}
+handlers = check_mods(
+    {
+        "core": {
+            handle_cmd: handler(cmd_ok, commands=list(COMMANDS.keys())),
+            handle_unknown: handler(cmd_no_ok),
+        },
+        "long_message": {handle_long(long_message): handler(is_long_message)},
+        "reply": {
+            handle_text_to_sticker(text_to_sticker): handler(
+                message_ok(text_to_sticker)
+            ),
+            handle_text_to_text(text_to_text): handler(message_ok(text_to_text)),
+            handle_stickers(sticker_to_sticker): handler(
+                sticker_ok(sticker_to_sticker), content_types=["sticker"]
+            ),
+        },
+        "captcha": {
+            handle_new_user: handler(
+                lambda m: bool(getattr(m, "new_chat_members", None)),
+                content_types=["new_chat_members"],
+            ),
+            handle_verify_captcha: handler(is_captcha_user),
+        },
+    }
+)
 
 inline_handlers = {handle_inline_help(COMMANDS): {lambda query: query.query == ""}}
 
-query_handlers = {
-    handle_title_change_attempt: {
-        "func": lambda call: chat_ok(call.message) and call.data.startswith("number_")
-    },
-    handle_captcha_button_press: {
-        "func": lambda call: chat_ok(call.message) and call.data.startswith("captcha_")
-    },
-}
+query_check_data = lambda d: lambda c: chat_ok(c.message) and c.data.startswith(d)
+query_handlers = check_mods(
+    {
+        "event": {handle_title_change_attempt: {"func": query_check_data("number_")}},
+        "captcha": {
+            handle_captcha_button_press: {"func": query_check_data("captcha_")}
+        },
+    }
+)
