@@ -32,6 +32,7 @@ from config import (
 import safely_bot_utils as bot
 
 from .fuzzy_match.fuzzy_match import choice_one_match
+from .roll_custom_title import validate_data
 
 head = lambda l: l[0] if l else None
 at = lambda l: lambda n: l[n] if n < len(l) else None
@@ -131,7 +132,11 @@ inline_handlers = {handle_inline_help(COMMANDS): {lambda query: query.query == "
 query_check_data = lambda d: lambda c: chat_ok(c.message) and c.data.startswith(d)
 query_handlers = check_mods(
     {
-        "event": {handle_title_change_attempt: {"func": query_check_data("number_")}},
+        "event": {
+            handle_title_change_attempt: {
+                "func": lambda c: chat_ok(c.message) and validate_data(c)
+            }
+        },
         "captcha": {
             handle_captcha_button_press: {"func": query_check_data("captcha_")}
         },
