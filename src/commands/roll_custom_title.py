@@ -1,3 +1,4 @@
+import json
 import random
 from types import SimpleNamespace
 
@@ -20,11 +21,24 @@ cant_roll = lambda func: func(phrases("roll_cant_roll"))
 cant_change_title = lambda func: lambda t: func(phrases("roll_cant_change_title", t))
 guessed = lambda func: lambda t: func(phrases("roll_guessed", t))
 old_title = lambda func: lambda t: func(phrases("roll_old_title", t))
-no_guessed = lambda e, v: bot.edit_message_text_later(phrases("roll_no_guessed", e, v))
+no_guessed_d6 = lambda e, v: (
+    bot.edit_message_text_later(phrases("roll_no_guessed_d6", e, v))
+)
+no_guessed_randomD6 = lambda: (
+    bot.edit_message_text_later(phrases("roll_no_guessed_randomD6"))
+)
 not_yours = bot.answer_callback_query(phrases("roll_not_yours"))
 
-callback_data = lambda i, m: {"callback_data": f"number_{i}$userid_{m.from_user.id}"}
-parse_callback_data = lambda c: map(lambda e: int(e.split("_")[1]), c.data.split("$"))
+callback_d6 = lambda i, m: (
+    json.dumps({"type": "d6", "value": i, "user_id": m.from_user.id})
+)
+
+callback_randomD6 = lambda m: (
+    json.dumps({"type": "randomD6", "value": 6, "user_id": m.from_user.id})
+)
+
+parse_data = lambda call: bot.do_action(json.loads)(call.data)
+validate_data = lambda call: parse_data(call).get("type") in ["d6", "randomD6"]
 set_markup = lambda text: lambda markup: bot.reply_to(text, reply_markup=markup)
 propose = set_markup(phrases("roll_propose"))
 
@@ -114,13 +128,21 @@ def start(message):
 def prepare_game(msg):
     if handle_cant_roll(bot.reply_to, msg.from_user.id, msg):
         return
-    buttons = [InlineKeyboardButton(i, **callback_data(i, msg)) for i in range(1, 7)]
-    propose(InlineKeyboardMarkup().row(*buttons))(msg)
+    number_buttons = [
+        InlineKeyboardButton(i, callback_data=callback_d6(i, msg)) for i in range(1, 7)
+    ]
+    propose(
+        InlineKeyboardMarkup()
+        .row(*number_buttons)
+        .row(InlineKeyboardButton("Мне повезёт", callback_data=callback_randomD6(msg)))
+    )(msg)
 
 
 # handle the event, when user press button in game
 def handle_title_change_attempt(call):
-    number, user_id = parse_callback_data(call)
+    data = parse_data(call)
+    user_id = data["user_id"]
+    number = data["value"]
     if user_id != call.from_user.id:
         return not_yours(call)
 
@@ -128,13 +150,15 @@ def handle_title_change_attempt(call):
     chat_id = message.chat.id
     if handle_cant_roll(bot.edit_message_text, user_id, message):
         return
-
-    dice_message = bot.send_dice(message)
+    if data["type"] == "d6":
+        dice_message = bot.send_dice(message)
+        commit_dice_roll(chat_id, user_id)
+        if (dice_value := dice_message.dice.value) != number:
+            return no_guessed_d6(number, dice_value)(message)
+    elif data["type"] == "randomD6":
+        dice_message = bot.send_random_dice(message)
+        commit_dice_roll(chat_id, user_id)
+        if dice_message.dice.value != number:
+            return no_guessed_randomD6()(message)
     bot.edit_message_reply_markup(message)
-    commit_dice_roll(chat_id, user_id)
-    bot.delete_message_later(dice_message)
-
-    if (dice_value := dice_message.dice.value) != number:
-        return no_guessed(number, dice_value)(message)
-
     return set_random_title(bot.edit_message_text_later, chat_id, user_id)(message)

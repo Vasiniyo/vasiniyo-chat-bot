@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import logging
+import random
 import threading
 
 from telebot.types import LinkPreviewOptions
@@ -120,6 +121,12 @@ promote_chat_member = lambda chat_id, user_id, **kwargs: (
 
 send_dice = lambda m: (
     do_action(bot.send_dice)(m.chat.id, reply_to_message_id=m.message_id, emoji="🎲")
+)
+
+send_random_dice = lambda m: (
+    do_action(bot.send_dice)(
+        m.chat.id, reply_to_message_id=m.message_id, emoji=random.choice(("🎯", "🎳"))
+    )
 )
 
 send_sticker = lambda file_id: lambda m: (
