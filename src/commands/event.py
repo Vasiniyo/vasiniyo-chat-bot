@@ -1,8 +1,8 @@
-import random
-
 from config import phrases
 from database.events import commit_win, fetch_top, get_last_winner, is_day_passed
 import safely_bot_utils as bot
+
+from .how_much import daily_percentage
 
 esper_event_id = 0
 
@@ -19,9 +19,11 @@ def play(message):
     players = get_players(chat_id)
 
     def _find_next_winner():
-        winner = random.choice(players)
+        winner = max(players, key=daily_percentage)
         commit_win(chat_id, winner.id, event_id)
-        return phrases("play_select", bot.to_link_user(winner))
+        return phrases(
+            "play_select", bot.to_link_user(winner), daily_percentage(winner)
+        )
 
     if len(players) == 0:
         return bot.reply_to(phrases("play_zero_players"))(message)
