@@ -18,6 +18,15 @@
     "long_message"
 ]
 
+[event]
+"default_winner_avatar" = "anon-ava.jpg"
+
+[[event.winner_pictures]]
+"background" = "wanted-template.png"
+"avatar_size" = 380
+"avatar_position_x" = 150
+"avatar_position_y" = 320
+
 [unique_file_id]
 "терпи" = "AgADcG4AAiWZuUk"
 "терплю" = "AgADw3sAAo8vuUk"
