@@ -20,6 +20,7 @@ from commands.text import handle_long, handle_text_to_sticker, handle_text_to_te
 from config import (
     MESSAGE_MAX_LEN,
     allowed_chats,
+    captcha_content_types,
     check_mods,
     drinks,
     espers,
@@ -51,7 +52,7 @@ unknown_cmd = (
 chat_ok = lambda p: lambda m: p(m) and in_allowed_chat(m)
 message_ok = lambda t: lambda m: head(choice_one_match(m.text, t.keys()))
 sticker_ok = lambda t: lambda m: m.sticker.file_id in t.keys()
-cmd_ok = lambda m: is_cmd_for_bot(split_cmd(m))
+cmd_ok = lambda m: is_cmd_for_bot(split_cmd(m)) and not is_captcha_user(m)
 cmd_no_ok = lambda m: unknown_cmd(split_cmd(m))
 is_captcha_user = lambda m: m.from_user.id in CAPTCHA_USERS
 
@@ -107,6 +108,15 @@ handlers = check_mods(
             handle_cmd: handler(cmd_ok, commands=list(COMMANDS.keys())),
             handle_unknown: handler(cmd_no_ok),
         },
+        "captcha": {
+            handle_new_user: handler(
+                lambda m: bool(getattr(m, "new_chat_members", None)),
+                content_types=["new_chat_members"],
+            ),
+            handle_verify_captcha: handler(
+                is_captcha_user, content_types=captcha_content_types
+            ),
+        },
         "long_message": {handle_long(long_message): handler(is_long_message)},
         "reply": {
             handle_text_to_sticker(text_to_sticker): handler(
@@ -117,17 +127,14 @@ handlers = check_mods(
                 sticker_ok(sticker_to_sticker), content_types=["sticker"]
             ),
         },
-        "captcha": {
-            handle_new_user: handler(
-                lambda m: bool(getattr(m, "new_chat_members", None)),
-                content_types=["new_chat_members"],
-            ),
-            handle_verify_captcha: handler(is_captcha_user),
-        },
     }
 )
 
-inline_handlers = {handle_inline_help(COMMANDS): {lambda query: query.query == ""}}
+inline_handlers = {
+    handle_inline_help(COMMANDS): {
+        lambda query: query.query == "" and not is_captcha_user(query)
+    }
+}
 
 query_check_data = lambda d: lambda c: chat_ok(c.message) and c.data.startswith(d)
 query_handlers = check_mods(

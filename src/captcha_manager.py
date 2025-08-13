@@ -206,12 +206,12 @@ def handle_verify_captcha(message):
         )
         return
 
-    user_input = message.text.strip().lower()
+    bot.delete_message(message.chat.id, message.message_id)
+
+    user_input = (message.text or "").strip().lower() or None
     if user_input == user["answer"].lower():
-        bot.delete_message(message.chat.id, message.message_id)
         pass_user(user_id, user_input)
     else:
-        bot.delete_message(message.chat.id, message.message_id)
         on_failed_attempt(user_id, user_input)
 
 
