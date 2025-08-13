@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 
 import telebot
 import toml
@@ -71,6 +72,20 @@ adjectives = config.get("custom-titles").get("adjectives")
 nouns = config.get("custom-titles").get("nouns")
 drinks = config.get("drink-or-not")
 espers = config.get("how-much-espers")
+
+default_winner_avatar = (
+    Path(__file__).parent / "assets" / config.get("event").get("default_winner_avatar")
+)
+winner_pictures = [
+    {
+        "background": Path(__file__).parent / "assets" / cfg.get("background"),
+        "avatar_size": cfg.get("avatar_size"),
+        "avatar_position_x": cfg.get("avatar_position_x"),
+        "avatar_position_y": cfg.get("avatar_position_y"),
+    }
+    for cfg in config.get("event").get("winner_pictures")
+]
+
 lang = config.get("lang") or "ru"
 
 

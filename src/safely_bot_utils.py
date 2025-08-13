@@ -137,6 +137,32 @@ answer_inline_query = lambda cmds: lambda query: (
     do_action(bot.answer_inline_query)(query.id, cmds)
 )
 
+get_file = lambda file_id: (do_action(bot.get_file)(file_id))
+
+download_file = lambda file_path: (do_action(bot.download_file)(file_path))
+
+send_photo_with_user_links = lambda photo, caption: lambda message: (
+    do_action(bot.send_photo)(
+        message.chat.id,
+        reply_to_message_id=message.message_id,
+        photo=photo,
+        caption=caption,
+        parse_mode="Markdown",
+        disable_notification=True,
+    )
+)
+
+
+def get_user_profile_photo_file_info(user_id):
+    photo = do_action(bot.get_user_profile_photos)(user_id, limit=1)
+    return get_file(photo.photos[0][-1].file_id) if photo.photos else None
+
+
+def download_profile_photo(user_id):
+    file_info = get_user_profile_photo_file_info(user_id)
+    return download_file(file_info.file_path) if file_info else None
+
+
 get_me = do_action(bot.get_me)
 
 loop = asyncio.new_event_loop()

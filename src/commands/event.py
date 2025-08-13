@@ -1,4 +1,9 @@
-from config import phrases
+from io import BytesIO
+import logging
+
+from PIL import Image
+
+from config import default_winner_avatar, phrases, winner_pictures
 from database.events import commit_win, fetch_top, get_last_winner, is_day_passed
 import safely_bot_utils as bot
 
@@ -13,31 +18,64 @@ def get_players(chat_id):
     return list(map(lambda a: a.user, players))
 
 
+def send_congratulations(winner, message):
+    profile_photo = bot.download_profile_photo(winner.id)
+    avatar = Image.open(
+        BytesIO(profile_photo) if profile_photo else default_winner_avatar
+    )
+    winner_picture_template = winner_pictures[
+        bot.daily_hash(winner.id) % len(winner_pictures)
+    ]
+    avatar_size = winner_picture_template.get("avatar_size")
+    avatar = avatar.resize((avatar_size, avatar_size))
+    background = Image.open(winner_picture_template.get("background"))
+    background.paste(
+        avatar,
+        (
+            winner_picture_template.get("avatar_position_x"),
+            winner_picture_template.get("avatar_position_y"),
+        ),
+    )
+    output = BytesIO()
+    background.save(output, format="PNG")
+    output.seek(0)
+    bot.send_photo_with_user_links(
+        background,
+        phrases("play_select", bot.to_link_user(winner), daily_percentage(winner)),
+    )(message)
+
+
 def play(message):
     event_id = esper_event_id
     chat_id = message.chat.id
     players = get_players(chat_id)
 
-    def _find_next_winner():
+    def _select_and_announce_next_winner():
         winner = max(players, key=daily_percentage)
         commit_win(chat_id, winner.id, event_id)
-        return phrases(
-            "play_select", bot.to_link_user(winner), daily_percentage(winner)
-        )
+        try:
+            send_congratulations(winner, message)
+        except Exception as e:
+            logging.exception(e)
+            msg_text = phrases(
+                "play_select", bot.to_link_user(winner), daily_percentage(winner)
+            )
+            bot.reply_with_user_links(msg_text)(message)
 
     if len(players) == 0:
-        return bot.reply_to(phrases("play_zero_players"))(message)
+        bot.reply_to(phrases("play_zero_players"))(message)
+        return
     day_passed = is_day_passed(chat_id, event_id)
     if day_passed == 1 or day_passed is None:
-        answer = _find_next_winner()
+        _select_and_announce_next_winner()
+        return
+    last_winner_id = get_last_winner(chat_id, event_id)
+    last_winner = next(filter(lambda p: p.id == last_winner_id, players), None)
+    if last_winner:
+        answer = phrases("play_already_selected", bot.to_link_user(last_winner))
+        bot.reply_with_user_links(answer)(message)
     else:
-        winner_id = get_last_winner(chat_id, event_id)
-        winner = next(filter(lambda p: p.id == winner_id, players), None)
-        if winner:
-            answer = phrases("play_already_selected", bot.to_link_user(winner))
-        else:
-            answer = _find_next_winner()
-    return bot.reply_with_user_links(answer)(message)
+        _select_and_announce_next_winner()
 
 
 def send_players(message):
