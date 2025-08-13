@@ -28,7 +28,10 @@ config = toml.load("config.toml")
 captcha_properties = {
     "gen": config["captcha_properties"]["gen"],
     "validate": config["captcha_properties"]["validate"],
+    # types of content that the captcha will intercept as a check on the user's answer
+    "content_types": config["captcha_properties"].get("content_types", ["text"]),
 }
+captcha_content_types = captcha_properties["content_types"]
 
 greeting_message = (
     config.get("welcome_message_for_new_members")

@@ -40,6 +40,13 @@ good = ["хороший", "отличный", "лучший"]
 "attempts" = 5
 "bar_length" = 20
 
+[captcha_properties]
+content_types = [
+    "animation", "audio", "contact", "dice", 
+    "document", "location", "photo", "text", 
+    "sticker", "video", "video_note", "voice"
+]
+
 [sticker_to_sticker]
 "терпи" = ["терплю"]
 "терплю" = "терпи"
