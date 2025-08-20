@@ -37,7 +37,7 @@ callback_randomD6 = lambda m: (
     json.dumps({"type": "randomD6", "value": 6, "user_id": m.from_user.id})
 )
 
-parse_data = lambda call: bot.do_action(json.loads)(call.data)
+parse_data = lambda call: (bot.do_action(json.loads)(call.data) or {})
 validate_data = lambda call: parse_data(call).get("type") in ["d6", "randomD6"]
 set_markup = lambda text: lambda markup: bot.reply_to(text, reply_markup=markup)
 propose = set_markup(phrases("roll_propose"))
