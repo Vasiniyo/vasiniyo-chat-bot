@@ -34,7 +34,7 @@ callback_d6 = lambda i, m: (
 )
 
 callback_randomD6 = lambda m: (
-    json.dumps({"type": "randomD6", "value": 6, "user_id": m.from_user.id})
+    json.dumps({"type": "randomD6", "user_id": m.from_user.id})
 )
 
 parse_data = lambda call: (bot.do_action(json.loads)(call.data) or {})
@@ -142,7 +142,6 @@ def prepare_game(msg):
 def handle_title_change_attempt(call):
     data = parse_data(call)
     user_id = data["user_id"]
-    number = data["value"]
     if user_id != call.from_user.id:
         return not_yours(call)
 
@@ -151,14 +150,16 @@ def handle_title_change_attempt(call):
     if handle_cant_roll(bot.edit_message_text, user_id, message):
         return
     if data["type"] == "d6":
+        number = data["value"]
         dice_message = bot.send_dice(message)
         commit_dice_roll(chat_id, user_id)
         if (dice_value := dice_message.dice.value) != number:
             return no_guessed_d6(number, dice_value)(message)
     elif data["type"] == "randomD6":
         dice_message = bot.send_random_dice(message)
+        win_values = bot.dices[dice_message.dice.emoji]["win_values"]
         commit_dice_roll(chat_id, user_id)
-        if dice_message.dice.value != number:
+        if dice_message.dice.value not in win_values:
             return no_guessed_randomD6()(message)
     bot.edit_message_reply_markup(message)
     return set_random_title(bot.edit_message_text_later, chat_id, user_id)(message)
