@@ -123,9 +123,22 @@ send_dice = lambda m: (
     do_action(bot.send_dice)(m.chat.id, reply_to_message_id=m.message_id, emoji="🎲")
 )
 
+dices = {
+    "⚽": {"weight": 25, "win_values": (3, 4, 5)},
+    "🏀": {"weight": 25, "win_values": (4, 5)},
+    "🎯": {"weight": 54, "win_values": (6,)},
+    "🎳": {"weight": 54, "win_values": (6,)},
+    "🎰": {"weight": 112, "win_values": (1, 22, 43, 64)},
+}
+
+dice_keys = list(dices.keys())
+dice_weights = [dices[item]["weight"] for item in dice_keys]
+
 send_random_dice = lambda m: (
     do_action(bot.send_dice)(
-        m.chat.id, reply_to_message_id=m.message_id, emoji=random.choice(("🎯", "🎳"))
+        m.chat.id,
+        reply_to_message_id=m.message_id,
+        emoji=random.choices(dice_keys, weights=dice_weights)[0],
     )
 )
 
