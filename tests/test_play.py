@@ -37,7 +37,8 @@ def test_category(category, test_values):
     for value in test_values:
         tier = category.get_tier_for_value(value)
         if tier:
-            print(f"  Value {value} -> Tier {tier.i}: {tier.phrases[0]}")
+            idx = category.tiers.index(tier)
+            print(f"  Value {value} -> Tier {idx}: {tier.phrases[0]}")
         else:
             print(f"  Value {value} -> No tier found")
 

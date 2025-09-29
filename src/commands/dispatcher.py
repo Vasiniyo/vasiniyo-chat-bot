@@ -10,10 +10,9 @@ from captcha_manager import (
 )
 from commands.anime import handle_anime
 from commands.drink_or_not import handle_drink_or_not
-from commands.event import handle_top_espers, play, send_players
 from commands.help import handle_help, handle_inline_help, handle_unknown
-from commands.how_much import handle_how_much
 from commands.like import handle_like, handle_top_likes
+from commands.play_event import handle_play, handle_top_winners, handle_winner
 from commands.roll_custom_title import handle_title_change_attempt, prepare_game, start
 from commands.stickers import handle_stickers
 from commands.text import handle_long, handle_text_to_sticker, handle_text_to_text
@@ -23,7 +22,6 @@ from config import (
     captcha_content_types,
     check_mods,
     drinks,
-    espers,
     long_message,
     phrases,
     sticker_to_sticker,
@@ -71,13 +69,10 @@ COMMANDS = check_mods(
         "drink_or_not": {
             "drink_or_not": (handle_drink_or_not(drinks), phrases("drink_or_not_help"))
         },
-        "how_much": {
-            "how_much_esper": (handle_how_much(espers), phrases("how_much_esper_help"))
-        },
-        "event": {
-            "top_espers": (handle_top_espers, phrases("top_espers_help")),
-            "players": (send_players, phrases("players_help")),
-            "play": (play, phrases("play_help")),
+        "play": {
+            "play": (handle_play, "🎲 Узнать своё значение в сегодняшней категории"),
+            "winner": (handle_winner, "🏆 Показать победителя дня"),
+            "top_winners": (handle_top_winners, "📊 Топ победителей за всё время"),
         },
     }
 )
