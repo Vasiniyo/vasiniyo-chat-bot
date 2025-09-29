@@ -5,6 +5,7 @@
 
 "mods" = [
     "core",
+    "play",
 
     "anime",
     "event",

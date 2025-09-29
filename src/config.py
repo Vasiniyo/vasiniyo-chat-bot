@@ -1,12 +1,13 @@
 import logging
 import os
 from pathlib import Path
+import sys
 
 import telebot
 import toml
 
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] > %(message)s"
+    level=logging.DEBUG, format="%(asctime)s [%(levelname)s] > %(message)s"
 )
 
 allowed_chats = os.environ.get("ACCESS_ID_GROUP", "*").split(";")
@@ -26,6 +27,12 @@ decembrist_stickers = {
 }
 
 config = toml.load("config.toml")
+
+# Add test modules if in test mode
+TEST_MODE = "--test" in sys.argv or os.environ.get("TEST_MODE", "").lower() == "true"
+if TEST_MODE and "test_new_category" not in config["mods"]:
+    config["mods"].append("test_new_category")
+    logging.info("Test mode enabled - adding test modules")
 captcha_properties = {
     "gen": config["captcha_properties"]["gen"],
     "validate": config["captcha_properties"]["validate"],
