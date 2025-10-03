@@ -14,6 +14,7 @@ from .play.play_utils import get_current_playable_category, get_player_value
 
 # Event ID for play categories
 PLAY_EVENT_ID = 1
+logger = logging.getLogger(__name__)
 
 
 def get_players(chat_id):
@@ -23,15 +24,26 @@ def get_players(chat_id):
     return list(map(lambda a: a.user, players))
 
 
-def send_congratulations(winner, value, category_name, message):
+def send_congratulations(user, value, category_name, message):
     """Send a congratulations message with winner picture."""
+    category_name_escaped = bot.escape_markdown_v2(category_name)
+    winner_value_escaped = bot.escape_markdown_v2(value)
+
+    # TODO  remake congratz msg as a member of PlayableCategory
+    msg_text = (
+        "🏆 Победитель дня: \n\t \\[{}]".format(category_name_escaped)
+        + "\n\t \\[{}]".format(bot.to_link_user(user))
+        + "\n\t󰆥 \\[{}]".format(winner_value_escaped)
+    )
+
+    # IMAGE
     try:
-        profile_photo = bot.download_profile_photo(winner.id)
+        profile_photo = bot.download_profile_photo(user.id)
         avatar = Image.open(
             BytesIO(profile_photo) if profile_photo else default_winner_avatar
         )
         winner_picture_template = winner_pictures[
-            bot.daily_hash(winner.id) % len(winner_pictures)
+            bot.daily_hash(user.id) % len(winner_pictures)
         ]
         avatar_size = winner_picture_template.get("avatar_size")
         avatar = avatar.resize((avatar_size, avatar_size))
@@ -47,12 +59,9 @@ def send_congratulations(winner, value, category_name, message):
         background.save(output, format="PNG")
         output.seek(0)
 
-        # TODO  remake congratz msg as a member of PlayableCategory
-        msg_text = f"🏆 Победитель дня в категории '{category_name}': {bot.to_link_user(winner)} [{value}]"
         bot.send_photo_with_user_links(background, msg_text)(message)
     except Exception as e:
         logging.exception(e)
-        msg_text = f"🏆 Победитель дня в категории '{category_name}': {bot.to_link_user(winner)} [{value}]"
         bot.reply_with_user_links(msg_text)(message)
 
 
@@ -64,13 +73,11 @@ def handle_play(message):
     category = get_current_playable_category(chat_id)
     value = get_player_value(category, chat_id, user_id)
 
-    # Get the tier for this value
     tier = category.get_tier_for_value(value)
 
     if tier:
-        # Select random phrase and emoji for this tier
         phrase = random.choice(tier.phrases)
-        emoji = "🎲"  # Default emoji, can be customized per category
+        emoji = "🎲"  # TODO possibly select emoji for each category
 
         answer = f"{emoji} [{category.name}]\n[{value}] {phrase}"
     else:
@@ -88,53 +95,52 @@ def handle_winner(message):
         bot.reply_to("❌ В чате нет подходящих участников (нужны админы)")(message)
         return
 
-    # Get current category
     category = get_current_playable_category(chat_id)
     winner_value = category.get_winner_value()
-
-    # Check if we need to select a new winner
     day_passed = is_day_passed(chat_id, PLAY_EVENT_ID)
 
     if day_passed == 1 or day_passed is None:
-        # Find winner(s) - those whose value equals or is closest to winner_value
         player_values = [
             (p, get_player_value(category, chat_id, p.id)) for p in players
         ]
 
-        # If winner_value is a specific number, find exact matches
         exact_winners = [(p, v) for p, v in player_values if v == winner_value]
 
+        # NOTE needs testing
         if exact_winners:
-            # If multiple players hit the exact value, pick one randomly
             winner, value = random.choice(exact_winners)
         else:
-            # Find closest value
             if category.winner_value == "max":
                 winner, value = max(player_values, key=lambda x: x[1])
             elif category.winner_value == "min":
                 winner, value = min(player_values, key=lambda x: x[1])
-            else:
-                # Find closest to target value
+            else:  # exact winners
                 winner, value = min(
                     player_values, key=lambda x: abs(x[1] - winner_value)
                 )
 
-        # Save winner to database
         commit_win(chat_id, winner.id, PLAY_EVENT_ID)
-
-        # Send congratulations
         send_congratulations(winner, value, category.name, message)
+
     else:
-        # Show existing winner
         last_winner_id = get_last_winner(chat_id, PLAY_EVENT_ID)
         last_winner = next(filter(lambda p: p.id == last_winner_id, players), None)
 
         if last_winner:
             value = get_player_value(category, chat_id, last_winner.id)
-            answer = f"🏆 Сегодняшний победитель в категории '{category.name}': {bot.to_link_user(last_winner)} [{value}]"
+
+            category_name_escaped = bot.escape_markdown_v2(category.name)
+            winner_value_type_escaped = bot.escape_markdown_v2(category.winner_value)
+            target_value_escaped = bot.escape_markdown_v2(winner_value)
+            value_escaped = bot.escape_markdown_v2(value)
+            answer = (
+                "🏆 Сегодняшний победитель в категории \\[{}]: \\[{}] \\[{}]".format(
+                    category_name_escaped, bot.to_link_user(last_winner), value_escaped
+                )
+            )
             bot.reply_with_user_links(answer)(message)
+
         else:
-            # The previous winner is no longer an admin, select new one
             handle_winner(message)
 
 

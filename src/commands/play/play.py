@@ -1,5 +1,10 @@
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Generic, List, Tuple, TypeVar, Union
+import logging
+from typing import Any, Callable, Dict, Generic, List, Optional, Tuple, TypeVar, Union
+
+from logger import logger
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -46,6 +51,7 @@ class PlayableCategory:
         self.continuous = continuous
         self._min_range: int
         self._max_range: int
+        self._all_values: List[int] = []
 
         self.__post_init__()
 
@@ -65,6 +71,8 @@ class PlayableCategory:
         self._min_range = min(tier.value_range.x for tier in self.tiers)
         self._max_range = max(tier.value_range.y for tier in self.tiers)
 
+        self._build_all_values_view()
+
         validation_errors = self._validate_all_ranges()
         if validation_errors:
             error_message = "Validation failed:\n" + "\n".join(
@@ -72,7 +80,6 @@ class PlayableCategory:
             )
             raise ValueError(error_message)
 
-        # Validate winner_value
         if isinstance(self.winner_value, str):
             if self.winner_value not in ["min", "max"]:
                 raise ValueError(f"winner_value must be 'min', 'max', or an integer")
@@ -84,7 +91,6 @@ class PlayableCategory:
                 raise ValueError(
                     f"winner_value {self.winner_value} is outside range [{self._min_range}, {self._max_range}]"
                 )
-            # Check if the value is actually present in any tier
             if not any(
                 tier.value_range.x <= self.winner_value <= tier.value_range.y
                 for tier in self.tiers
@@ -128,6 +134,18 @@ class PlayableCategory:
                 )
 
         return errors
+
+    def _build_all_values_view(self):
+        def values_generator():
+            for tier in self.tiers:
+                for value in range(tier.value_range.x, tier.value_range.y + 1):
+                    yield value
+
+        self._values_generator = values_generator
+
+        self._total_values_count = sum(
+            tier.value_range.y - tier.value_range.x + 1 for tier in self.tiers
+        )
 
     @classmethod
     def create(
@@ -176,7 +194,6 @@ class PlayableCategory:
         )
 
     def get_tier_for_value(self, value: int) -> Tier | None:
-        """Get the tier that contains the given value using binary search."""
         if not self.tiers:
             return None
 
@@ -214,8 +231,15 @@ class PlayableCategory:
         import random
 
         rng = random.Random(seed)
-        tier_idx = rng.randint(0, len(self.tiers) - 1)
-        tier = self.tiers[tier_idx]
-        value = rng.randint(tier.value_range.x, tier.value_range.y)
+        random_index = rng.randint(0, self._total_values_count - 1)
 
-        return value
+        current_index = 0
+        for tier in self.tiers:
+            tier_size = tier.value_range.y - tier.value_range.x + 1
+            if current_index + tier_size > random_index:
+                value_offset = random_index - current_index
+                return tier.value_range.x + value_offset
+            current_index += tier_size
+
+        # Should never hit here
+        return self._min_range

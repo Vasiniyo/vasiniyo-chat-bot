@@ -64,6 +64,20 @@ reply_with_user_links = lambda text: reply_to(
 )
 
 
+# NOTE probably should leave only one of makrdown senders
+def escape_markdown_v2(text):
+    """Escape special characters for MarkdownV2."""
+    if text is None:
+        return ""
+    text = str(text)
+    # fmt: off
+    special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+    # fmt: on
+    for char in special_chars:
+        text = text.replace(char, f"\\{char}")
+    return text
+
+
 def to_link_user(user):
     if user is None:
         return phrases("unknown_user")
