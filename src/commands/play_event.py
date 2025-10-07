@@ -19,9 +19,29 @@ logger = logging.getLogger(__name__)
 
 def get_players(chat_id):
     """Get all eligible players (admins who can be edited or creators)."""
+    logger.info(" GET_PLAYER ".center(50, "="))
+    logger.info(f"Getting players for chat_id: {chat_id}")
+
+    admins = bot.get_chat_administrators(chat_id)
+    logger.info(f"Total admins fetched: {len(admins)}")
+
+    for admin in admins:
+        logger.debug(
+            f"Admin: {admin.user.id} ({admin.user.username}), "
+            f"status: {admin.status}, can_be_edited: {admin.can_be_edited}"
+        )
+
     are_players = lambda user: user.can_be_edited or user.status == "creator"
-    players = filter(are_players, bot.get_chat_administrators(chat_id))
-    return list(map(lambda a: a.user, players))
+    eligible_admins = list(filter(are_players, admins))
+    logger.info(f"Eligible players (can_be_edited or creator): {len(eligible_admins)}")
+
+    players = list(map(lambda a: a.user, eligible_admins))
+
+    for player in players:
+        logger.info(f"Eligible player: {player.id} ({player.username})")
+    logger.info("=" * 50)
+
+    return players
 
 
 def send_congratulations(user, value, category_name, message):
@@ -88,6 +108,8 @@ def handle_play(message):
 
 def handle_winner(message):
     """Handle the /winner command - show or select today's winner."""
+    logger.info(" HANDLE_WINNER ".center(50, "="))
+
     chat_id = message.chat.id
     players = get_players(chat_id)
 
@@ -99,30 +121,52 @@ def handle_winner(message):
     winner_value = category.get_winner_value()
     day_passed = is_day_passed(chat_id, PLAY_EVENT_ID)
 
+    # NOTE new players would have to wait untils the day resets to particupate
     if day_passed == 1 or day_passed is None:
+        logger.info(f"Selecting new winner!")
         player_values = [
             (p, get_player_value(category, chat_id, p.id)) for p in players
         ]
 
-        exact_winners = [(p, v) for p, v in player_values if v == winner_value]
+        logger.info(f"=== Player values for category '{category.name}' ===")
+        for player, value in player_values:
+            logger.info(f"\tPlayer: {player.id} ({player.username}) -> Value: {value}")
+        logger.info(f"Category winner_value type: {category.winner_value}")
 
         # NOTE needs testing
-        if exact_winners:
-            winner, value = random.choice(exact_winners)
-        else:
-            if category.winner_value == "max":
-                winner, value = max(player_values, key=lambda x: x[1])
-            elif category.winner_value == "min":
-                winner, value = min(player_values, key=lambda x: x[1])
-            else:  # exact winners
+        if category.winner_value == "exact":
+            exact_winners = [(p, v) for p, v in player_values if v == winner_value]
+            if exact_winners:
+                winner, value = random.choice(exact_winners)
+                logger.info(
+                    f"Selected exact winner: {winner.id} ({winner.username}) with value: {value}"
+                )
+            else:  # TODO: count a win for a bot, when no players won.
+                # Currently it chooses the closes one to the winning value
                 winner, value = min(
                     player_values, key=lambda x: abs(x[1] - winner_value)
                 )
+                logger.info(
+                    f"Selected closest to exact winner: {winner.id} ({winner.username}) with value: {value}"
+                )
+        elif category.winner_value == "max":
+            winner, value = max(player_values, key=lambda x: x[1])
+            logger.info(
+                f"Selected max winner: {winner.id} ({winner.username}) with value: {value}"
+            )
+        elif category.winner_value == "min":
+            winner, value = min(player_values, key=lambda x: x[1])
+            logger.info(
+                f"Selected min winner: {winner.id} ({winner.username}) with value: {value}"
+            )
+        else:
+            logger.info(f"Unknown winner_value type category")
 
         commit_win(chat_id, winner.id, PLAY_EVENT_ID)
         send_congratulations(winner, value, category.name, message)
 
     else:
+        logger.info(f"Looking for previous winner")
         last_winner_id = get_last_winner(chat_id, PLAY_EVENT_ID)
         last_winner = next(filter(lambda p: p.id == last_winner_id, players), None)
 
@@ -142,6 +186,8 @@ def handle_winner(message):
 
         else:
             handle_winner(message)
+
+    logger.info("=" * 50)
 
 
 def handle_top_winners(message):
