@@ -6,10 +6,11 @@ import random
 
 from PIL import Image
 
-from config import default_winner_avatar, phrases, winner_pictures
+from config import default_winner_avatar, lang, phrases, winner_pictures
 from database.events import commit_win, fetch_top, get_last_winner, is_day_passed
 import safely_bot_utils as bot
 
+from .play.play import PlayableCategory
 from .play.play_utils import get_current_playable_category, get_player_value
 
 # Event ID for play categories
@@ -44,16 +45,26 @@ def get_players(chat_id):
     return players
 
 
-def send_congratulations(user, value, category_name, message):
+def send_congratulations(user, value, category: PlayableCategory, message):
     """Send a congratulations message with winner picture."""
-    category_name_escaped = bot.escape_markdown_v2(category_name)
-    winner_value_escaped = bot.escape_markdown_v2(value)
+
+    category_normal = category.locale.name[lang]
+    category_name_escaped = bot.escape_markdown_v2(category_normal)
+
+    win_value_escaped = bot.escape_markdown_v2(value)
+
+    measure_units_normal = category.locale.units[lang]
+    measure_units_escaped = bot.escape_markdown_v2(measure_units_normal)
+
+    # score_msg = "а"switch(category.win_value):
+    #     case("max"): ""
 
     # TODO  remake congratz msg as a member of PlayableCategory
     msg_text = (
-        "🏆 Победитель дня: \n\t \\[{}]".format(category_name_escaped)
-        + "\n\t \\[{}]".format(bot.to_link_user(user))
-        + "\n\t󰆥 \\[{}]".format(winner_value_escaped)
+        "🏆 Победитель дня в категории: \n\t{}:".format(category_name_escaped)
+        + "{}".format(bot.to_link_user(user))
+        + "Целых \n\t \\[{}]".format(win_value_escaped)
+        + "из"
     )
 
     # IMAGE
@@ -131,10 +142,10 @@ def handle_winner(message):
         logger.info(f"=== Player values for category '{category.name}' ===")
         for player, value in player_values:
             logger.info(f"\tPlayer: {player.id} ({player.username}) -> Value: {value}")
-        logger.info(f"Category winner_value type: {category.winner_value}")
+        logger.info(f"Category winner_value type: {category.win_value}")
 
         # NOTE needs testing
-        if category.winner_value == "exact":
+        if category.win_value == "exact":
             exact_winners = [(p, v) for p, v in player_values if v == winner_value]
             if exact_winners:
                 winner, value = random.choice(exact_winners)
@@ -149,12 +160,12 @@ def handle_winner(message):
                 logger.info(
                     f"Selected closest to exact winner: {winner.id} ({winner.username}) with value: {value}"
                 )
-        elif category.winner_value == "max":
+        elif category.win_value == "max":
             winner, value = max(player_values, key=lambda x: x[1])
             logger.info(
                 f"Selected max winner: {winner.id} ({winner.username}) with value: {value}"
             )
-        elif category.winner_value == "min":
+        elif category.win_value == "min":
             winner, value = min(player_values, key=lambda x: x[1])
             logger.info(
                 f"Selected min winner: {winner.id} ({winner.username}) with value: {value}"
@@ -163,7 +174,7 @@ def handle_winner(message):
             logger.info(f"Unknown winner_value type category")
 
         commit_win(chat_id, winner.id, PLAY_EVENT_ID)
-        send_congratulations(winner, value, category.name, message)
+        send_congratulations(winner, value, category, message)
 
     else:
         logger.info(f"Looking for previous winner")
@@ -174,7 +185,7 @@ def handle_winner(message):
             value = get_player_value(category, chat_id, last_winner.id)
 
             category_name_escaped = bot.escape_markdown_v2(category.name)
-            winner_value_type_escaped = bot.escape_markdown_v2(category.winner_value)
+            winner_value_type_escaped = bot.escape_markdown_v2(category.win_value)
             target_value_escaped = bot.escape_markdown_v2(winner_value)
             value_escaped = bot.escape_markdown_v2(value)
             answer = (

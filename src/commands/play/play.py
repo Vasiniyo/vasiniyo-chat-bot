@@ -1,8 +1,10 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 import logging
 from typing import Any, Callable, Dict, Generic, List, Optional, Tuple, TypeVar, Union
 
-from logger import logger
+from config import lang
+from src.commands.play.play_config import win_goal_locale
+from src.logger import logger
 
 logger = logging.getLogger(__name__)
 
@@ -33,21 +35,33 @@ class Pair(Generic[T, U]):
 
 @dataclass
 class Tier:
+    @dataclass
+    class Locale:
+        phrases: Dict[str, List[str]]
+
     value_range: Pair[int, int]
-    phrases: Tuple[str, ...]
+    locale: Locale
 
 
 class PlayableCategory:
+    @dataclass
+    class Locale:
+        name: Dict[str, str]
+        units: Dict[str, str]
+        win_goal: Dict[str, str]
+
     def __init__(
         self,
         name: str,
         tiers: Tuple[Tier, ...],
-        winner_value: Union[str, int] = "max",
+        win_value: Union[str, int],
+        locale: Locale,
         continuous: bool = True,
     ):
         self.name = name
         self.tiers = tiers
-        self.winner_value = winner_value
+        self.win_value = win_value
+        self.locale = locale
         self.continuous = continuous
         self._min_range: int
         self._max_range: int
@@ -55,6 +69,19 @@ class PlayableCategory:
 
         self.__post_init__()
 
+    def _build_all_values_view(self):
+        def values_generator():
+            for tier in self.tiers:
+                for value in range(tier.value_range.x, tier.value_range.y + 1):
+                    yield value
+
+        self._values_generator = values_generator
+
+        self._total_values_count = sum(
+            tier.value_range.y - tier.value_range.x + 1 for tier in self.tiers
+        )
+
+    # TODO validate that locale have all values for each language
     def __post_init__(self):
         """Validate the category after creation."""
         if not self.tiers:
@@ -74,36 +101,39 @@ class PlayableCategory:
         self._build_all_values_view()
 
         validation_errors = self._validate_all_ranges()
+        locale_errors = self._validate_locales()
+        validation_errors.extend(locale_errors)
+
         if validation_errors:
             error_message = "Validation failed:\n" + "\n".join(
                 f"- {error}" for error in validation_errors
             )
             raise ValueError(error_message)
 
-        if isinstance(self.winner_value, str):
-            if self.winner_value not in ["min", "max"]:
+        if isinstance(self.win_value, str):
+            if self.win_value not in ["min", "max"]:
                 raise ValueError(f"winner_value must be 'min', 'max', or an integer")
-        elif isinstance(self.winner_value, int):
-            if (
-                self.winner_value < self._min_range
-                or self.winner_value > self._max_range
-            ):
+        elif isinstance(self.win_value, int):
+            if self.win_value < self._min_range or self.win_value > self._max_range:
                 raise ValueError(
-                    f"winner_value {self.winner_value} is outside range [{self._min_range}, {self._max_range}]"
+                    f"winner_value {self.win_value} is outside range [{self._min_range}, {self._max_range}]"
                 )
             if not any(
-                tier.value_range.x <= self.winner_value <= tier.value_range.y
+                tier.value_range.x <= self.win_value <= tier.value_range.y
                 for tier in self.tiers
             ):
                 raise ValueError(
-                    f"winner_value {self.winner_value} is not within any tier's range"
+                    f"winner_value {self.win_value} is not within any tier's range"
                 )
 
+    # TODO add locale to repr
     def __repr__(self):
         tier_lines = []
         for tier in self.tiers:
             min_val, max_val = tier.value_range
-            tier_lines.append(f"Range {min_val}-{max_val}, Phrases: {tier.phrases}")
+            tier_lines.append(
+                f"Range {min_val}-{max_val}, Phrases: {tier.locale.phrases}"
+            )
 
         tiers_str = "\n".join(tier_lines)
         return f"{tiers_str}\ncontinuous: {self.continuous}"
@@ -135,17 +165,112 @@ class PlayableCategory:
 
         return errors
 
-    def _build_all_values_view(self):
-        def values_generator():
-            for tier in self.tiers:
-                for value in range(tier.value_range.x, tier.value_range.y + 1):
-                    yield value
+    def _validate_locales(self) -> List[str]:
+        """Validate that all tiers have phrases for all languages and locale consistency."""
+        errors = []
 
-        self._values_generator = values_generator
+        if not self.tiers:
+            errors.append("no tiers to validate against")
+            return errors
 
-        self._total_values_count = sum(
-            tier.value_range.y - tier.value_range.x + 1 for tier in self.tiers
-        )
+        global lang
+        required_language = lang
+
+        # Check each field in PlayableCategory.Locale has the required language
+        locale_fields = fields(PlayableCategory.Locale)
+        for field in locale_fields:
+            field_value = getattr(self.locale, field.name)
+            if required_language not in field_value:
+                errors.append(
+                    f"'{field.name}' is missing required language '{required_language}'"
+                )
+
+        # Check each tier has phrases for the required language
+        for idx, tier in enumerate(self.tiers):
+            if required_language not in tier.locale.phrases:
+                errors.append(
+                    f"Tier {idx + 1} is missing required language '{required_language}'"
+                )
+            else:
+                phrases = tier.locale.phrases.get(required_language, [])
+                if not phrases or len(phrases) == 0:
+                    errors.append(
+                        f"Tier {idx + 1} has no phrases for language '{required_language}'"
+                    )
+
+        return errors
+
+    @staticmethod
+    def _validate_locale_schema(locale: Dict[str, Dict[str, str]], name) -> List[str]:
+        """Validate locale dictionary schema."""
+        errors = []
+        locale_fields = {field.name for field in fields(PlayableCategory.Locale)}
+
+        if not locale:
+            errors.append("locale is empty")
+            return errors
+
+        for lang, data in locale.items():
+            if not isinstance(data, dict):
+                errors.append(
+                    f"locale['{lang}'] must be a dictionary, got {type(data).__name__}"
+                )
+                continue
+
+            for field_name in locale_fields:
+                if field_name not in data:
+                    if field_name != "win_goal":
+                        errors.append(f"locale['{lang}'] is missing '{field_name}' key")
+                    else:
+                        logger.info(
+                            "Using default winner message for the category %s", name
+                        )
+                        locale[field_name] = {lang: win_goal_locale[lang]}
+                elif not isinstance(data[field_name], str):
+                    errors.append(
+                        f"locale['{lang}']['{field_name}'] must be a string, "
+                        f"got {type(data[field_name]).__name__}"
+                    )
+
+        return errors
+
+    @staticmethod
+    def _validate_phrases_schema(
+        phrases: Dict[str, Dict[int, List[str]]], tiers_num: int
+    ) -> List[str]:
+        """Validate phrases dictionary schema."""
+        errors = []
+
+        if not phrases:
+            errors.append("phrases is empty")
+            return errors
+
+        for lang, tier_data in phrases.items():
+            if not isinstance(tier_data, dict):
+                errors.append(
+                    f"phrases['{lang}'] must be a dictionary, got {type(tier_data).__name__}"
+                )
+                continue
+
+            # Check that all tiers from 1 to tiers_num exist
+            for tier_num in range(1, tiers_num + 1):
+                if tier_num not in tier_data:
+                    errors.append(f"phrases['{lang}'] is missing tier {tier_num}")
+                    continue
+
+                tier_phrases = tier_data[tier_num]
+                if not isinstance(tier_phrases, list):
+                    errors.append(
+                        f"phrases['{lang}'][{tier_num}] must be a list, got {type(tier_phrases).__name__}"
+                    )
+                    continue
+
+                if len(tier_phrases) == 0:
+                    errors.append(
+                        f"phrases['{lang}'][{tier_num}] must have at least one phrase"
+                    )
+
+        return errors
 
     @classmethod
     def create(
@@ -153,21 +278,48 @@ class PlayableCategory:
         name: str,
         tiers_num: int,
         ranges: Union[Callable[[int], Tuple[int, int]], Dict[int, Tuple[int, int]]],
-        phrases: Dict[int, List[str]],
-        winner_value: Union[str, int] = "max",
+        phrases: Dict[str, Dict[int, List[str]]],
+        win_value: Union[str, int],
+        locale: Dict[str, Dict[str, str]],
         continuous: bool = True,
-    ) -> "PlayableCategory":
+    ) -> Optional["PlayableCategory"]:
         """
-        Factory method to create PlayableCategory.
-        Validation happens in __post_init__.
+        Factory method to create PlayableCategory with validation.
+        Returns None if validation fails (logs error with highest priority).
 
         Args:
             name: Category name
             tiers_num: Number of tiers
             ranges: Either a function (tier_num -> (min, max)) or dict {tier_num: (min, max)}
-            phrases: Dict {tier_num: [phrase1, phrase2, ...]}
+            phrases: {"lang": {tier_num: [phrases]}}
+            locale: {"lang": {"name": "...", "units": "...", "win_goal" = ".." | default}}
             continuous: If True, ranges must be continuous (no gaps). If False, gaps are allowed.
         """
+        # Validate locale schema
+        locale_errors = cls._validate_locale_schema(locale, name)
+        if locale_errors:
+            logger.critical(
+                f"CRITICAL: Category '{name}' has invalid locale configuration!\n"
+                f"{'=' * 80}\n"
+                f"Errors:\n" + "\n".join(f"  • {err}" for err in locale_errors) + "\n"
+                f"Received locale: {locale}\n"
+                f"Expected schema: {{'<lang>': {{'name': '<string>', 'units': '<string>'}}}}\n"
+                f"{'=' * 80}\n"
+                f"SKIPPING CATEGORY '{name}'"
+            )
+
+        # Validate phrases schema
+        phrases_errors = cls._validate_phrases_schema(phrases, tiers_num)
+        if phrases_errors:
+            logger.critical(
+                f"CRITICAL: Category '{name}' has invalid phrases configuration!\n"
+                f"{'=' * 80}\n"
+                f"Errors:\n" + "\n".join(f"  • {err}" for err in phrases_errors) + "\n"
+                f"Received phrases structure: {{{', '.join(phrases.keys())}: {{<tier_num>: [phrases]}}}}\n"
+                f"Expected: Each language must have phrases for tiers 1-{tiers_num}\n"
+                f"{'=' * 80}\n"
+                f"SKIPPING CATEGORY '{name}'"
+            )
 
         if callable(ranges):
             range_dict = {i + 1: ranges(i + 1) for i in range(tiers_num)}
@@ -177,19 +329,27 @@ class PlayableCategory:
         tier_objects = []
         for tier_num in range(1, tiers_num + 1):
             tier_range = range_dict.get(tier_num, (0, 0))
-            tier_phrases = phrases.get(tier_num, [""])
+
+            tier_phrases_by_lang = {}
+            for lang, tier_data in phrases.items():
+                tier_phrases_by_lang[lang] = tier_data.get(tier_num, [])
 
             tier_objects.append(
                 Tier(
                     value_range=Pair(tier_range[0], tier_range[1]),
-                    phrases=tuple(tier_phrases),
+                    locale=Tier.Locale(phrases=tier_phrases_by_lang),
                 )
             )
+
+        locale_names = {lang: data["name"] for lang, data in locale.items()}
+        locale_units = {lang: data["units"] for lang, data in locale.items()}
+        locale_obj = cls.Locale(name=locale_names, units=locale_units)
 
         return cls(
             name=name,
             tiers=tuple(tier_objects),
-            winner_value=winner_value,
+            winner_value=win_value,
+            locale=locale_obj,
             continuous=continuous,
         )
 
@@ -217,14 +377,14 @@ class PlayableCategory:
 
     def get_winner_value(self) -> int:
         """Get the winning value for this category."""
-        if isinstance(self.winner_value, int):
-            return self.winner_value
-        elif self.winner_value == "min":
+        if isinstance(self.win_value, int):
+            return self.win_value
+        elif self.win_value == "min":
             return self._min_range
-        elif self.winner_value == "max":
+        elif self.win_value == "max":
             return self._max_range
 
-        raise ValueError(f"Invalid winner_value: {self.winner_value}")
+        raise ValueError(f"Invalid winner_value: {self.win_value}")
 
     def get_random_value(self, seed: int) -> int:
         """Get a random value for a user based on their seed."""

@@ -57,7 +57,7 @@ def handle_test_new_category(message):
         value = get_player_value(category, chat_id, player.id)
         player_values.append((player, value))
     winner_value = category.get_winner_value()
-    if isinstance(category.winner_value, int):
+    if isinstance(category.win_value, int):
         exact_winners = [(p, v) for p, v in player_values if v == winner_value]
         if exact_winners:
             winner, value = rng.choice(exact_winners)
@@ -67,14 +67,14 @@ def handle_test_new_category(message):
             value = winner_value
             winner_name = "🤖 Bot (no player hit the target value)"
     else:
-        if category.winner_value == "max":
+        if category.win_value == "max":
             winner, value = max(player_values, key=lambda x: x[1])
         else:
             winner, value = min(player_values, key=lambda x: x[1])
         winner_name = bot.to_link_user(winner)
 
     category_name_escaped = bot.escape_markdown_v2(category.name)
-    winner_value_type_escaped = bot.escape_markdown_v2(category.winner_value)
+    winner_value_type_escaped = bot.escape_markdown_v2(category.win_value)
     target_value_escaped = bot.escape_markdown_v2(winner_value)
     value_escaped = bot.escape_markdown_v2(value)
 
