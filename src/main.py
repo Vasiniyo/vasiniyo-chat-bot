@@ -6,8 +6,8 @@ import sys
 from telebot.types import BotCommand
 
 from commands.dispatcher import COMMANDS, handlers, inline_handlers, query_handlers
-from config import bot
 from event_queue import start_ticking_if_needed
+from src.config import bot
 
 logger = logging.getLogger(__name__)
 
