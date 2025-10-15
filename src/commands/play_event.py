@@ -129,7 +129,7 @@ def handle_winner(message):
         return
 
     category = get_current_playable_category(chat_id)
-    winner_value = category.get_winner_value()
+    winner_value = category.get_win_value()
     day_passed = is_day_passed(chat_id, PLAY_EVENT_ID)
 
     # NOTE new players would have to wait untils the day resets to particupate
@@ -142,7 +142,7 @@ def handle_winner(message):
         logger.info(f"=== Player values for category '{category.name}' ===")
         for player, value in player_values:
             logger.info(f"\tPlayer: {player.id} ({player.username}) -> Value: {value}")
-        logger.info(f"Category winner_value type: {category.win_value}")
+        logger.info(f"Category win_value type: {category.win_value}")
 
         # NOTE needs testing
         if category.win_value == "exact":
@@ -171,7 +171,7 @@ def handle_winner(message):
                 f"Selected min winner: {winner.id} ({winner.username}) with value: {value}"
             )
         else:
-            logger.info(f"Unknown winner_value type category")
+            logger.info(f"Unknown win_value type category")
 
         commit_win(chat_id, winner.id, PLAY_EVENT_ID)
         send_congratulations(winner, value, category, message)

@@ -2,8 +2,8 @@ import logging
 from typing import Dict, List, Tuple
 import unittest
 
-from src.commands.play.play import PlayableCategory
-from src.commands.play.play_config import CATEGORIES
+from commands.play.play import PlayableCategory
+from commands.play.play_config import CATEGORIES
 
 
 class TestPlayCategories(unittest.TestCase):
@@ -67,7 +67,7 @@ class TestPlayCategories(unittest.TestCase):
                     "tiers_num": 2,
                     "ranges": {1: (0, 50), 2: (51, 100)},
                     "phrases": {"ru": {1: ["phrase1"], 2: ["phrase2"]}},
-                    "winner_value": "max",
+                    "win_value": "max",
                     "locale": {"ru": {"name": "тест"}},  # Missing 'units'
                     "continuous": True,
                 },
@@ -80,7 +80,7 @@ class TestPlayCategories(unittest.TestCase):
                     "tiers_num": 2,
                     "ranges": {1: (0, 60), 2: (50, 100)},  # Overlap at 50-60
                     "phrases": {"ru": {1: ["phrase1"], 2: ["phrase2"]}},
-                    "winner_value": "max",
+                    "win_value": "max",
                     "locale": {"ru": {"name": "тест", "units": "очков"}},
                     "continuous": True,
                 },
@@ -93,7 +93,7 @@ class TestPlayCategories(unittest.TestCase):
                     "tiers_num": 2,
                     "ranges": {1: (0, 40), 2: (50, 100)},  # Gap at 41-49
                     "phrases": {"ru": {1: ["phrase1"], 2: ["phrase2"]}},
-                    "winner_value": "max",
+                    "win_value": "max",
                     "locale": {"ru": {"name": "тест", "units": "очков"}},
                     "continuous": True,
                 },
@@ -106,7 +106,7 @@ class TestPlayCategories(unittest.TestCase):
                     "tiers_num": 2,
                     "ranges": {1: (0, 50), 2: (51, 100)},
                     "phrases": {"ru": {1: ["phrase1"]}},  # Missing tier 2
-                    "winner_value": "max",
+                    "win_value": "max",
                     "locale": {"ru": {"name": "тест", "units": "очков"}},
                     "continuous": True,
                 },
@@ -119,33 +119,33 @@ class TestPlayCategories(unittest.TestCase):
                     "tiers_num": 2,
                     "ranges": {1: (0, 50), 2: (51, 100)},
                     "phrases": {"ru": {1: ["phrase1"], 2: []}},  # Empty list
-                    "winner_value": "max",
+                    "win_value": "max",
                     "locale": {"ru": {"name": "тест", "units": "очков"}},
                     "continuous": True,
                 },
             },
             {
-                "name": "invalid_winner_value",
-                "description": "Invalid winner_value",
+                "name": "invalid_win_value",
+                "description": "Invalid win_value",
                 "config": {
                     "name": "test_invalid_winner",
                     "tiers_num": 2,
                     "ranges": {1: (0, 50), 2: (51, 100)},
                     "phrases": {"ru": {1: ["phrase1"], 2: ["phrase2"]}},
-                    "winner_value": "middle",  # Invalid - should be 'min', 'max', or int
+                    "win_value": "middle",  # Invalid - should be 'min', 'max', or int
                     "locale": {"ru": {"name": "тест", "units": "очков"}},
                     "continuous": True,
                 },
             },
             {
-                "name": "winner_value_out_of_range",
+                "name": "win_value_out_of_range",
                 "description": "Winner value outside of tier ranges",
                 "config": {
                     "name": "test_winner_out_of_range",
                     "tiers_num": 2,
                     "ranges": {1: (0, 50), 2: (51, 100)},
                     "phrases": {"ru": {1: ["phrase1"], 2: ["phrase2"]}},
-                    "winner_value": 150,  # Outside range
+                    "win_value": 150,  # Outside range
                     "locale": {"ru": {"name": "тест", "units": "очков"}},
                     "continuous": True,
                 },
@@ -158,7 +158,7 @@ class TestPlayCategories(unittest.TestCase):
                     "tiers_num": 2,
                     "ranges": {1: (50, 0), 2: (51, 100)},  # Reversed
                     "phrases": {"ru": {1: ["phrase1"], 2: ["phrase2"]}},
-                    "winner_value": "max",
+                    "win_value": "max",
                     "locale": {"ru": {"name": "тест", "units": "очков"}},
                     "continuous": True,
                 },
@@ -171,7 +171,7 @@ class TestPlayCategories(unittest.TestCase):
                     "tiers_num": 2,
                     "ranges": {1: (0, 50), 2: (51, 100)},
                     "phrases": {"ru": {1: ["phrase1"], 2: ["phrase2"]}},
-                    "winner_value": "max",
+                    "win_value": "max",
                     "locale": {"ru": {"name": 123, "units": "очков"}},  # Wrong type
                     "continuous": True,
                 },
@@ -186,7 +186,7 @@ class TestPlayCategories(unittest.TestCase):
                     "phrases": {
                         "ru": {1: ["phrase1"], 3: ["phrase3"]}
                     },  # missing 2nd, 4th tier
-                    "winner_value": "max",
+                    "win_value": "max",
                     "locale": {"ru": {"name": "тест", "units": "очков"}},
                     "continuous": True,
                 },
@@ -264,8 +264,8 @@ class TestPlayCategories(unittest.TestCase):
                 tier, f"Should return None for out of range value {value}"
             )
 
-        # Test get_winner_value
-        winner = category.get_winner_value()
+        # Test get_win_value
+        winner = category.get_win_value()
         self.assertIsInstance(winner, int, "Winner value should be an integer")
 
         # Test get_random_value

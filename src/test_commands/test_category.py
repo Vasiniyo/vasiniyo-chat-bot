@@ -56,15 +56,15 @@ def handle_test_new_category(message):
     for player in players:
         value = get_player_value(category, chat_id, player.id)
         player_values.append((player, value))
-    winner_value = category.get_winner_value()
+    win_value = category.get_win_value()
     if isinstance(category.win_value, int):
-        exact_winners = [(p, v) for p, v in player_values if v == winner_value]
+        exact_winners = [(p, v) for p, v in player_values if v == win_value]
         if exact_winners:
             winner, value = rng.choice(exact_winners)
             winner_name = bot.to_link_user(winner)
         else:
             winner = None
-            value = winner_value
+            value = win_value
             winner_name = "🤖 Bot (no player hit the target value)"
     else:
         if category.win_value == "max":
@@ -74,8 +74,8 @@ def handle_test_new_category(message):
         winner_name = bot.to_link_user(winner)
 
     category_name_escaped = bot.escape_markdown_v2(category.name)
-    winner_value_type_escaped = bot.escape_markdown_v2(category.win_value)
-    target_value_escaped = bot.escape_markdown_v2(winner_value)
+    win_value_type_escaped = bot.escape_markdown_v2(category.win_value)
+    target_value_escaped = bot.escape_markdown_v2(win_value)
     value_escaped = bot.escape_markdown_v2(value)
 
     lines = [
@@ -83,7 +83,7 @@ def handle_test_new_category(message):
         "Simulating category reset.",
         "==========================",
         f"New category: {category_name_escaped}",
-        f"Winner value type: {winner_value_type_escaped}",
+        f"Winner value type: {win_value_type_escaped}",
         f"Target value: {target_value_escaped}",
         f"New winner: {winner_name} {value_escaped}",
         "",

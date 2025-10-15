@@ -1,10 +1,12 @@
 from dataclasses import dataclass, fields
+from functools import cached_property
 import logging
-from typing import Any, Callable, Dict, Generic, List, Optional, Tuple, TypeVar, Union
+from typing import (
+    Any, Callable, Dict, Generic, List, Literal, Optional, Tuple, TypeVar, Union,
+)
 
 from config import lang
-from src.commands.play.play_config import win_goal_locale
-from src.logger import logger
+from logger import logger
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +45,45 @@ class Tier:
     locale: Locale
 
 
+class WinValue:
+    """Represents the winning condition for a category."""
+
+    def __init__(self, type: Literal["max", "min", "exact"], value: Callable[[], int]):
+        """
+        Args:
+            type: The type of winning condition
+            value: A callable that returns the winning value (will be cached)
+        """
+        self.type = type
+        self._value_callable = value
+        self._cached_value: Optional[int] = None
+
+    @property
+    def value(self) -> int:
+        """Get the winning value (cached after first access)."""
+        if self._cached_value is None:
+            self._cached_value = self._value_callable()
+        return self._cached_value
+
+    def __repr__(self):
+        return f"WinValue(type={self.type!r}, value={self.value})"
+
+    @staticmethod
+    def create_min(category: "PlayableCategory") -> "WinValue":
+        """Factory method for min win value."""
+        return WinValue(type="min", value=lambda: category._min_range)
+
+    @staticmethod
+    def create_max(category: "PlayableCategory") -> "WinValue":
+        """Factory method for max win value."""
+        return WinValue(type="max", value=lambda: category._max_range)
+
+    @staticmethod
+    def create_exact(exact_value: int) -> "WinValue":
+        """Factory method for exact win value."""
+        return WinValue(type="exact", value=lambda: exact_value)
+
+
 class PlayableCategory:
     @dataclass
     class Locale:
@@ -54,7 +95,7 @@ class PlayableCategory:
         self,
         name: str,
         tiers: Tuple[Tier, ...],
-        win_value: Union[str, int],
+        win_value: WinValue,
         locale: Locale,
         continuous: bool = True,
     ):
@@ -81,7 +122,6 @@ class PlayableCategory:
             tier.value_range.y - tier.value_range.x + 1 for tier in self.tiers
         )
 
-    # TODO validate that locale have all values for each language
     def __post_init__(self):
         """Validate the category after creation."""
         if not self.tiers:
@@ -102,7 +142,10 @@ class PlayableCategory:
 
         validation_errors = self._validate_all_ranges()
         locale_errors = self._validate_locales()
+        win_value_errors = self._validate_win_value()
+
         validation_errors.extend(locale_errors)
+        validation_errors.extend(win_value_errors)
 
         if validation_errors:
             error_message = "Validation failed:\n" + "\n".join(
@@ -110,23 +153,6 @@ class PlayableCategory:
             )
             raise ValueError(error_message)
 
-        if isinstance(self.win_value, str):
-            if self.win_value not in ["min", "max"]:
-                raise ValueError(f"winner_value must be 'min', 'max', or an integer")
-        elif isinstance(self.win_value, int):
-            if self.win_value < self._min_range or self.win_value > self._max_range:
-                raise ValueError(
-                    f"winner_value {self.win_value} is outside range [{self._min_range}, {self._max_range}]"
-                )
-            if not any(
-                tier.value_range.x <= self.win_value <= tier.value_range.y
-                for tier in self.tiers
-            ):
-                raise ValueError(
-                    f"winner_value {self.win_value} is not within any tier's range"
-                )
-
-    # TODO add locale to repr
     def __repr__(self):
         tier_lines = []
         for tier in self.tiers:
@@ -136,7 +162,32 @@ class PlayableCategory:
             )
 
         tiers_str = "\n".join(tier_lines)
-        return f"{tiers_str}\ncontinuous: {self.continuous}"
+        return (
+            f"{tiers_str}\ncontinuous: {self.continuous}\nwin_value: {self.win_value}"
+        )
+
+    def _validate_win_value(self) -> List[str]:
+        """Validate that the win_value is valid for this category's ranges."""
+        errors = []
+
+        try:
+            actual_value = self.win_value.value
+        except Exception as e:
+            errors.append(f"Failed to compute win_value: {e}")
+            return errors
+
+        if self.win_value.type == "exact":
+            if not any(
+                tier.value_range.x <= actual_value <= tier.value_range.y
+                for tier in self.tiers
+            ):
+                range_str = self._format_ranges()
+                errors.append(
+                    f"win_value {actual_value} is not within any tier's range. "
+                    f"Valid ranges: {range_str}"
+                )
+
+        return errors
 
     def _validate_all_ranges(self) -> List[str]:
         """Perform all range validations and return list of error messages."""
@@ -200,9 +251,45 @@ class PlayableCategory:
 
         return errors
 
+    def _format_ranges(self) -> str:
+        """Format ranges for display"""
+        if not self.tiers:
+            return "[]"
+
+        if self.continuous:
+            return f"[{self._min_range}..{self._max_range}]"
+        else:
+            # Non-continuous: show each tier's range
+            # TODO contact connecting ones
+            ranges = [
+                f"[{tier.value_range.x}..{tier.value_range.y}]" for tier in self.tiers
+            ]
+            return " ".join(ranges)
+
+    def get_formatted_win_goal(self, language: str = lang) -> str:
+        """
+        Get the formatted win goal message for the given language.
+        Handles place holders:
+            - @range: formats available range for category.
+            - @value: gets the value for the win.
+        """
+        if language not in self.locale.win_goal:
+            return ""
+
+        template = self.locale.win_goal[language]
+
+        template = template.replace("@range", self._format_ranges())
+        template = template.replace("@value", str(self.win_value.value))
+
+        return template
+
     @staticmethod
-    def _validate_locale_schema(locale: Dict[str, Dict[str, str]], name) -> List[str]:
-        """Validate locale dictionary schema."""
+    def _validate_locale_schema(
+        locale: Dict[str, Dict[str, str]], name: str, win_type: str
+    ) -> List[str]:
+        """Validate locale dictionary schema. Uses defaults for win_goal if not present"""
+        from commands.play.play_config import win_goal_locale
+
         errors = []
         locale_fields = {field.name for field in fields(PlayableCategory.Locale)}
 
@@ -210,25 +297,38 @@ class PlayableCategory:
             errors.append("locale is empty")
             return errors
 
-        for lang, data in locale.items():
+        for lang_code, data in locale.items():
             if not isinstance(data, dict):
                 errors.append(
-                    f"locale['{lang}'] must be a dictionary, got {type(data).__name__}"
+                    f"locale['{lang_code}'] must be a dictionary, got {type(data).__name__}"
                 )
                 continue
 
             for field_name in locale_fields:
                 if field_name not in data:
-                    if field_name != "win_goal":
-                        errors.append(f"locale['{lang}'] is missing '{field_name}' key")
+                    if field_name == "win_goal":
+                        if (
+                            lang_code in win_goal_locale
+                            and win_type in win_goal_locale[lang_code]
+                        ):
+                            default_goal = "".join(win_goal_locale[lang_code][win_type])
+                            data["win_goal"] = default_goal
+                            logger.info(
+                                f"Using default '{win_type}' winner message"
+                                f"for category '{name}' in language '{lang_code}'"
+                            )
+                        else:
+                            errors.append(
+                                f"locale['{lang_code}'] is missing 'win_goal'"
+                                f"and no default available for win_type '{win_type}'"
+                            )
                     else:
-                        logger.info(
-                            "Using default winner message for the category %s", name
+                        errors.append(
+                            f"locale['{lang_code}'] is missing '{field_name}' key"
                         )
-                        locale[field_name] = {lang: win_goal_locale[lang]}
                 elif not isinstance(data[field_name], str):
                     errors.append(
-                        f"locale['{lang}']['{field_name}'] must be a string, "
+                        f"locale['{lang_code}']['{field_name}'] must be a string, "
                         f"got {type(data[field_name]).__name__}"
                     )
 
@@ -279,7 +379,7 @@ class PlayableCategory:
         tiers_num: int,
         ranges: Union[Callable[[int], Tuple[int, int]], Dict[int, Tuple[int, int]]],
         phrases: Dict[str, Dict[int, List[str]]],
-        win_value: Union[str, int],
+        win_value: Union[str, Tuple[str, int]],
         locale: Dict[str, Dict[str, str]],
         continuous: bool = True,
     ) -> Optional["PlayableCategory"]:
@@ -292,21 +392,32 @@ class PlayableCategory:
             tiers_num: Number of tiers
             ranges: Either a function (tier_num -> (min, max)) or dict {tier_num: (min, max)}
             phrases: {"lang": {tier_num: [phrases]}}
-            locale: {"lang": {"name": "...", "units": "...", "win_goal" = ".." | default}}
+            win_value: Either "min", "max", or ("exact", value)
+            locale: {"lang": {"name": "...", "units": "...",
+                              "win_goal": "min" | "max"| ["exact", value:int]}}
             continuous: If True, ranges must be continuous (no gaps). If False, gaps are allowed.
         """
+        if isinstance(win_value, str):
+            win_type = win_value
+        elif isinstance(win_value, tuple):
+            win_type = win_value[0]
+        else:
+            win_type = "unknown"  # should never hit it
+
         # Validate locale schema
-        locale_errors = cls._validate_locale_schema(locale, name)
+        # NOTE: uses defaults for win_goal
+        locale_errors = cls._validate_locale_schema(locale, name, win_type)
         if locale_errors:
             logger.critical(
                 f"CRITICAL: Category '{name}' has invalid locale configuration!\n"
                 f"{'=' * 80}\n"
                 f"Errors:\n" + "\n".join(f"  • {err}" for err in locale_errors) + "\n"
                 f"Received locale: {locale}\n"
-                f"Expected schema: {{'<lang>': {{'name': '<string>', 'units': '<string>'}}}}\n"
+                f"Expected schema: {{'<lang>': {{'name': '<string>', 'units': '<string>', 'win_goal': '<string>' (optional)}}}}\n"
                 f"{'=' * 80}\n"
                 f"SKIPPING CATEGORY '{name}'"
             )
+            return None
 
         # Validate phrases schema
         phrases_errors = cls._validate_phrases_schema(phrases, tiers_num)
@@ -320,6 +431,7 @@ class PlayableCategory:
                 f"{'=' * 80}\n"
                 f"SKIPPING CATEGORY '{name}'"
             )
+            return None
 
         if callable(ranges):
             range_dict = {i + 1: ranges(i + 1) for i in range(tiers_num)}
@@ -343,15 +455,87 @@ class PlayableCategory:
 
         locale_names = {lang: data["name"] for lang, data in locale.items()}
         locale_units = {lang: data["units"] for lang, data in locale.items()}
-        locale_obj = cls.Locale(name=locale_names, units=locale_units)
+        locale_win_goal = {lang: data["win_goal"] for lang, data in locale.items()}
 
-        return cls(
-            name=name,
-            tiers=tuple(tier_objects),
-            winner_value=win_value,
-            locale=locale_obj,
-            continuous=continuous,
+        locale_obj = cls.Locale(
+            name=locale_names, units=locale_units, win_goal=locale_win_goal
         )
+
+        # Create a temporary category to pass to WinValue factory methods
+        # We'll set win_value to None initially, then update it
+        temp_category = cls.__new__(cls)
+        temp_category.name = name
+        temp_category.tiers = tuple(tier_objects)
+        temp_category.locale = locale_obj
+        temp_category.continuous = continuous
+        temp_category._all_values = []
+
+        # Calculate ranges before creating WinValue
+        if temp_category.tiers:
+            temp_category.tiers = tuple(
+                sorted(temp_category.tiers, key=lambda tier: tier.value_range.x)
+            )
+            temp_category._min_range = min(
+                tier.value_range.x for tier in temp_category.tiers
+            )
+            temp_category._max_range = max(
+                tier.value_range.y for tier in temp_category.tiers
+            )
+
+        # Parse win_value and create WinValue object
+        try:
+            if isinstance(win_value, str):
+                if win_value == "min":
+                    win_value_obj = WinValue.create_min(temp_category)
+                elif win_value == "max":
+                    win_value_obj = WinValue.create_max(temp_category)
+                else:
+                    logger.critical(
+                        f"CRITICAL: Category '{name}' has invalid win_value '{win_value}'!\n"
+                        f"Expected 'min', 'max', or ('exact', value)\n"
+                        f"SKIPPING CATEGORY '{name}'"
+                    )
+                    return None
+            elif isinstance(win_value, tuple) and len(win_value) == 2:
+                win_type_str, exact_value = win_value
+                if win_type_str != "exact":
+                    logger.critical(
+                        f"CRITICAL: Category '{name}' has invalid tuple win_value!\n"
+                        f"Expected ('exact', value), got ('{win_type_str}', {exact_value})\n"
+                        f"SKIPPING CATEGORY '{name}'"
+                    )
+                    return None
+                win_value_obj = WinValue.create_exact(exact_value)
+            else:
+                logger.critical(
+                    f"CRITICAL: Category '{name}' has invalid win_value type!\n"
+                    f"Expected str or tuple, got {type(win_value).__name__}\n"
+                    f"SKIPPING CATEGORY '{name}'"
+                )
+                return None
+        except Exception as e:
+            logger.critical(
+                f"CRITICAL: Category '{name}' has invalid win_value configuration!\n"
+                f"Error: {e}\n"
+                f"SKIPPING CATEGORY '{name}'"
+            )
+            return None
+
+        try:
+            return cls(
+                name=name,
+                tiers=tuple(tier_objects),
+                win_value=win_value_obj,
+                locale=locale_obj,
+                continuous=continuous,
+            )
+        except ValueError as e:
+            logger.critical(
+                f"CRITICAL: Category '{name}' failed validation during initialization!\n"
+                f"Error: {e}\n"
+                f"SKIPPING CATEGORY '{name}'"
+            )
+            return None
 
     def get_tier_for_value(self, value: int) -> Tier | None:
         if not self.tiers:
@@ -375,16 +559,9 @@ class PlayableCategory:
 
         return None
 
-    def get_winner_value(self) -> int:
+    def get_win_value(self) -> int:
         """Get the winning value for this category."""
-        if isinstance(self.win_value, int):
-            return self.win_value
-        elif self.win_value == "min":
-            return self._min_range
-        elif self.win_value == "max":
-            return self._max_range
-
-        raise ValueError(f"Invalid winner_value: {self.win_value}")
+        return self.win_value.value
 
     def get_random_value(self, seed: int) -> int:
         """Get a random value for a user based on their seed."""
