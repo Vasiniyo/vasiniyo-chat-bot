@@ -16,7 +16,12 @@ from commands.how_much import handle_how_much
 from commands.like import handle_like, handle_top_likes
 from commands.roll_custom_title import handle_title_change_attempt, prepare_game, start
 from commands.stickers import handle_stickers
-from commands.text import handle_long, handle_text_to_sticker, handle_text_to_text
+from commands.text import (
+    handle_long,
+    handle_text_to_sticker,
+    handle_text_to_text,
+    handle_text_to_text_to_target,
+)
 from config import (
     MESSAGE_MAX_LEN,
     allowed_chats,
@@ -29,6 +34,7 @@ from config import (
     sticker_to_sticker,
     text_to_sticker,
     text_to_text,
+    text_to_text_to_target,
 )
 import safely_bot_utils as bot
 
@@ -51,6 +57,9 @@ unknown_cmd = (
 
 chat_ok = lambda p: lambda m: p(m) and in_allowed_chat(m)
 message_ok = lambda t: lambda m: head(choice_one_match(m.text, t.keys()))
+message_ok_and_equal = lambda t: lambda m: m.text.lower() in map(
+    lambda text: text.lower(), text_to_text_to_target
+)
 sticker_ok = lambda t: lambda m: m.sticker.file_id in t.keys()
 cmd_ok = lambda m: is_cmd_for_bot(split_cmd(m)) and not is_captcha_user(m)
 cmd_no_ok = lambda m: unknown_cmd(split_cmd(m))
@@ -119,6 +128,9 @@ handlers = check_mods(
         },
         "long_message": {handle_long(long_message): handler(is_long_message)},
         "reply": {
+            handle_text_to_text_to_target(text_to_text_to_target): handler(
+                message_ok_and_equal(text_to_text_to_target)
+            ),
             handle_text_to_sticker(text_to_sticker): handler(
                 message_ok(text_to_sticker)
             ),
