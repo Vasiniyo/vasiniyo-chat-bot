@@ -68,6 +68,7 @@ sticker_to_sticker = {
 text_to_sticker = {
     key: to_sticker_list(value) for key, value in config.get("text_to_sticker").items()
 }
+text_to_text_to_target = expand_templates(config.get("text_to_text_to_target"))
 text_to_text = expand_templates(config.get("text_to_text"))
 long_message = config.get("long_message").get("long_message")
 MESSAGE_MAX_LEN = config.get("long_message").get("message_max_len")
