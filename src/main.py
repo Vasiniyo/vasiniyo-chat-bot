@@ -1,15 +1,22 @@
 import logging
+import os
+import pprint
+import sys
 
 from telebot.types import BotCommand
 
 from commands.dispatcher import COMMANDS, handlers, inline_handlers, query_handlers
-from config import bot
 from event_queue import start_ticking_if_needed
+from src.config import bot
 
 logger = logging.getLogger(__name__)
 
+# Check for test mode
+TEST_MODE = "--test" in sys.argv or os.environ.get("TEST_MODE", "").lower() == "true"
+
 if __name__ == "__main__":
-    logger.info("Bot started")
+    mode_str = " in TEST MODE" if TEST_MODE else ""
+    logger.info(f"Bot started{mode_str}")
 
     start_ticking_if_needed()
 
@@ -17,6 +24,7 @@ if __name__ == "__main__":
         bot.message_handler(**args)(handler)
 
     for handler, args in inline_handlers.items():
+        logger.info(f"\n[MAIN]\n {handler}: {pprint.pprint(args)}")
         bot.inline_handler(*args)(handler)
 
     for handler, args in query_handlers.items():
