@@ -1,13 +1,11 @@
+import bisect
 from dataclasses import dataclass
 import logging
-from logging import exception
 import os
 from pathlib import Path
 
 import telebot
 import toml
-
-import logger
 
 
 @dataclass
@@ -26,6 +24,7 @@ class Config:
     class CustomTitles:
         adjectives: list[str]
         nouns: list[str]
+        weights: list[int]
 
     @dataclass
     class LongMessage:
@@ -141,6 +140,18 @@ _to_list = lambda func: lambda value: (
 _to_sticker_list = lambda value: _to_list(lambda v: _stickers[v])(value)
 _captcha_properties = _toml_config.get("captcha_properties", {})
 
+_adjectives = sorted(
+    set([str(x) for x in _toml_config.get("custom-titles", {}).get("adjectives", [])]),
+    key=len,
+)
+_nouns = list(set(_toml_config.get("custom-titles", {}).get("nouns", [])))
+_weights = []
+
+for adj in _adjectives:
+    max_len = 15 - len(adj)
+    count = bisect.bisect_right([len(n) for n in _nouns], max_len)
+    _weights.append(count)
+
 config = Config(
     triggerReplies=Config.TriggerReplies(
         sticker_to_sticker={
@@ -161,8 +172,7 @@ config = Config(
         max_len=_toml_config.get("long_message", {}).get("message_max_len", 1000),
     ),
     custom_titles=Config.CustomTitles(
-        adjectives=_toml_config.get("custom-titles", {}).get("adjectives", []),
-        nouns=_toml_config.get("custom-titles", {}).get("nouns", []),
+        adjectives=_adjectives, nouns=_nouns, weights=_weights
     ),
     drinks=list(
         map(

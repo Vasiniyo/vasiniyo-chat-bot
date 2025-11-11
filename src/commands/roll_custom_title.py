@@ -14,9 +14,15 @@ from database.titles import (
 )
 import safely_bot_utils as bot
 
-random_title = (
-    lambda: f"{random.choice(config.custom_titles.adjectives)} {random.choice(config.custom_titles.nouns)}"
-)
+
+def random_title():
+    titles = config.custom_titles
+    adj = random.choices(titles.adjectives, weights=titles.weights, k=1)[0]
+    noun = random.choice(
+        [noun for noun in titles.nouns if len(adj) + 1 + len(noun) <= 16]
+    )
+    return f"{adj} {noun}"
+
 
 already_registered = bot.reply_to(bot.phrases("roll_already_registered"))
 cant_roll = lambda func: func(bot.phrases("roll_cant_roll"))
