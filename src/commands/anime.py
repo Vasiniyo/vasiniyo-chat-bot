@@ -1,8 +1,5 @@
-import logging
-
 import requests
 
-from config import phrases
 import safely_bot_utils as bot
 
 
@@ -17,4 +14,4 @@ def handle_anime(message):
     if response.status_code == 200:
         bot.reply_to(f"https://shikimori.one{response.json()[0]['url']}")(message)
     else:
-        bot.reply_to(phrases("anime_failed"))(message)
+        bot.reply_to(bot.phrases("anime_failed"))(message)

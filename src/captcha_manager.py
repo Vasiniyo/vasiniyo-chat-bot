@@ -7,17 +7,17 @@ from PIL import Image, ImageOps
 from captcha.image import ImageCaptcha
 from telebot import types
 
-from config import bot, captcha_properties, greeting_message, phrases
+from config import bot, config
 from event_queue import EVENTS, add_task, cancel_task
+from safely_bot_utils import phrases
 
 logger = logging.getLogger(__name__)
+captcha_properties = config.captcha_properties
 
 CAPTCHA_USERS = {}
-GREETING_MESSAGE = greeting_message
-
 
 # ==================================== CAPTHA GEN ============================================
-_raw_banned = captcha_properties["gen"]["banned_symbols"]
+_raw_banned = captcha_properties.gen.banned_symbols
 _BANNED = {c.lower() for c in _raw_banned} | {c.upper() for c in _raw_banned}
 _ALLOWED_SYMBOLS = [
     c for c in (string.ascii_letters + string.digits) if c not in _BANNED
@@ -26,19 +26,19 @@ _ALLOWED_SYMBOLS = [
 
 def generate_captcha_text():
     """Return a random captcha string of the requested length."""
-    length = captcha_properties["gen"]["length"]
+    length = captcha_properties.gen.length
     return "".join(random.choices(_ALLOWED_SYMBOLS, k=length))
 
 
 def generate_captcha_image(text):
-    props = captcha_properties["gen"]
-    img = ImageCaptcha(fonts=[props["font_path"]])
-    img.character_rotate = (-props["max_rotation"], props["max_rotation"])
+    props = captcha_properties.gen
+    img = ImageCaptcha(fonts=[props.font_path])
+    img.character_rotate = (-props.max_rotation, props.max_rotation)
     image = Image.open(img.generate(text))
     padded = ImageOps.expand(
         image,
-        border=(0, props["margins_width"], 0, props["margins_width"]),
-        fill=props["margins_color"],
+        border=(0, props.margins_width, 0, props.margins_width),
+        fill=props.margins_color,
     )
 
     buf = BytesIO()
@@ -49,10 +49,10 @@ def generate_captcha_image(text):
 
 # ==================================== MSG UPDATES ============================================
 def build_caption(time_left, failed_attempts):
-    total_time = captcha_properties["validate"]["timer"]
-    attempts_left = max(0, captcha_properties["validate"]["attempts"] - failed_attempts)
+    total_time = captcha_properties.validate.timer
+    attempts_left = max(0, captcha_properties.validate.attempts - failed_attempts)
     elapsed = total_time - time_left
-    bar_len = captcha_properties["validate"]["bar_length"]
+    bar_len = captcha_properties.validate.bar_length
     filled = min(bar_len, int((elapsed / total_time) * bar_len))
     bar = "[" + "=" * filled + ">" + " " * (bar_len - filled - 1) + "]"
     pct = int((elapsed / total_time) * 100)
@@ -103,7 +103,7 @@ def fail_user(user_id, reason="Time is up"):
 
     logger.info("Failing user %s in chat %s: %s", user_id, user["chat_id"], reason)
     user["time_left"] = max(
-        0, user["time_left"] - captcha_properties["validate"]["update_freq"]
+        0, user["time_left"] - captcha_properties.validate.update_freq
     )
     caption = (
         build_caption(user["time_left"], user["failed_attempts"]) + f"\n❌ {reason}"
@@ -126,7 +126,7 @@ def pass_user(user_id, user_input):
     CAPTCHA_USERS.pop(user_id, None)
     # TODO: queue this for deletion (and user's final answer')
     bot.send_message(user["chat_id"], "✅ You passed!")
-    bot.send_message(user["chat_id"], GREETING_MESSAGE)
+    bot.send_message(user["chat_id"], captcha_properties.greeting_message)
 
     if user["message_id"]:
         bot.delete_message(user["chat_id"], user["message_id"])
@@ -157,7 +157,7 @@ def on_failed_attempt(user_id, user_input):
         user_input,
         user["answer"],
     )
-    if user["failed_attempts"] >= captcha_properties["validate"]["attempts"]:
+    if user["failed_attempts"] >= captcha_properties.validate.attempts:
         fail_user(user_id, reason="Max attempts used")
     else:
         update_captcha_message(user_id)
@@ -184,7 +184,7 @@ def handle_new_user(message):
             "eq_key": None,  # to be filled later (down below)
             "message_id": None,  # to be filled when the message is isses
             "failed_attempts": 0,
-            "time_left": captcha_properties["validate"]["timer"],
+            "time_left": captcha_properties.validate.timer,
             "image": image,
             "answer": text,
         }
@@ -255,7 +255,7 @@ def queue_captcha_updates(user_id):
         return None
 
     total = user["time_left"]
-    freq = captcha_properties["validate"]["update_freq"]
+    freq = captcha_properties.validate.update_freq
     timestamps = list(range(freq, total + 1, freq))
 
     task_id = add_task(
@@ -313,7 +313,7 @@ def regenerate_captcha(user_id):
 
 
 def update_captcha_time_left(captcha):
-    timer = captcha_properties["validate"]["timer"]
+    timer = captcha_properties.validate.timer
     event_offset = EVENTS.get(captcha["eq_key"], {}).get("offset", timer)
     event_time_left = timer - event_offset
     captcha["time_left"] = max(0, event_time_left)

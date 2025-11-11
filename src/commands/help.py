@@ -1,11 +1,10 @@
 from telebot.types import InlineQueryResultArticle, InputTextMessageContent
 
-from config import phrases
 import safely_bot_utils as bot
 
 
 def handle_help(commands):
-    help_text = f"{phrases('help_header')}\n\n" + "\n".join(
+    help_text = f"{bot.phrases('help_header')}\n\n" + "\n".join(
         f"/{cmd} - {desc}" for cmd, (_, desc) in commands.items()
     )
     return bot.reply_to(help_text)
@@ -24,4 +23,4 @@ def handle_inline_help(commands):
     return bot.answer_inline_query(inline_results)
 
 
-handle_unknown = bot.reply_to(phrases("unknown_command"))
+handle_unknown = bot.reply_to(bot.phrases("unknown_command"))
