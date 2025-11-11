@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from config import adjectives, nouns, phrases
+from config import config
 from database.titles import (
     commit_dice_roll,
     commit_update_title,
@@ -14,20 +14,24 @@ from database.titles import (
 )
 import safely_bot_utils as bot
 
-random_title = lambda: f"{random.choice(adjectives)} {random.choice(nouns)}"
+random_title = (
+    lambda: f"{random.choice(config.custom_titles.adjectives)} {random.choice(config.custom_titles.nouns)}"
+)
 
-already_registered = bot.reply_to(phrases("roll_already_registered"))
-cant_roll = lambda func: func(phrases("roll_cant_roll"))
-cant_change_title = lambda func: lambda t: func(phrases("roll_cant_change_title", t))
-guessed = lambda func: lambda t: func(phrases("roll_guessed", t))
-old_title = lambda func: lambda t: func(phrases("roll_old_title", t))
+already_registered = bot.reply_to(bot.phrases("roll_already_registered"))
+cant_roll = lambda func: func(bot.phrases("roll_cant_roll"))
+cant_change_title = lambda func: lambda t: func(
+    bot.phrases("roll_cant_change_title", t)
+)
+guessed = lambda func: lambda t: func(bot.phrases("roll_guessed", t))
+old_title = lambda func: lambda t: func(bot.phrases("roll_old_title", t))
 no_guessed_d6 = lambda e, v: (
-    bot.edit_message_text_later(phrases("roll_no_guessed_d6", e, v))
+    bot.edit_message_text_later(bot.phrases("roll_no_guessed_d6", e, v))
 )
 no_guessed_randomD6 = lambda: (
-    bot.edit_message_text_later(phrases("roll_no_guessed_randomD6"))
+    bot.edit_message_text_later(bot.phrases("roll_no_guessed_randomD6"))
 )
-not_yours = bot.answer_callback_query(phrases("roll_not_yours"))
+not_yours = bot.answer_callback_query(bot.phrases("roll_not_yours"))
 
 callback_d6 = lambda i, m: (
     json.dumps({"type": "d6", "value": i, "user_id": m.from_user.id})
@@ -40,7 +44,7 @@ callback_randomD6 = lambda m: (
 parse_data = lambda call: (bot.do_action(json.loads)(call.data) or {})
 validate_data = lambda call: parse_data(call).get("type") in ["d6", "randomD6"]
 set_markup = lambda text: lambda markup: bot.reply_to(text, reply_markup=markup)
-propose = set_markup(phrases("roll_propose"))
+propose = set_markup(bot.phrases("roll_propose"))
 
 
 def perms_ok(chat_id, user_id):

@@ -1,12 +1,13 @@
 import asyncio
 import datetime
+from locale import locale
 import logging
 import random
 import threading
 
 from telebot.types import LinkPreviewOptions
 
-from config import bot, phrases
+from config import bot, config
 from logger import logger
 
 
@@ -177,6 +178,15 @@ def download_profile_photo(user_id):
 
 
 get_me = do_action(bot.get_me)
+
+
+def phrases(k, *args):
+    if config.language not in locale:
+        config.language = "ru"
+    if k in locale[config.language]:
+        return locale[config.language][k].format(*args)
+    return "Мне нечего тебе сказать..."
+
 
 loop = asyncio.new_event_loop()
 threading.Thread(target=start_loop, daemon=True).start()
