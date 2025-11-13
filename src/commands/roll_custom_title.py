@@ -188,7 +188,7 @@ def prepare_game(msg):
     )(msg)
 
 
-def get_titles_page(chat_id, page=0, page_size=9):
+def get_titles_page(chat_id, user_id, page=0, page_size=9):
     user_titles = {
         user_id: title
         for user_id, title in get_user_titles(chat_id)
@@ -197,12 +197,12 @@ def get_titles_page(chat_id, page=0, page_size=9):
     titles = [
         (admin.user, admin.custom_title)
         for admin in bot.get_chat_administrators(chat_id)
-        if user_titles.get(admin.user.id) == admin.custom_title
+        if user_titles.get(admin.user.id) == admin.custom_title and admin.user.id != user_id
     ]
     start1 = page * page_size
     end = start1 + page_size
     page_titles = titles[start1:end]
-    more_pages = end < (len(titles) - 1)
+    more_pages = end < (len(titles))
     return page_titles, more_pages
 
 
@@ -217,10 +217,7 @@ def handle_title_change_attempt(call):
         return
     if data["type"] == "s":
         return show_steal_menu(message, user_id, page=data.get("page", 0))
-    elif data["type"] == "sl":
-        bot.edit_message_reply_markup(message)
-        return handle_steal(call)
-    elif data["type"] == "m":
+    if data["type"] == "m":
         number_buttons = [
             InlineKeyboardButton(i, callback_data=callback_d6(i, user_id))
             for i in range(1, 7)
@@ -237,6 +234,10 @@ def handle_title_change_attempt(call):
         )
         bot.edit_message_text(bot.phrases("roll_propose"), reply_markup=markup)(message)
         return
+    elif data["type"] == "sl":
+        bot.edit_message_reply_markup(message)
+        return handle_steal(call)
+
     if data["type"] == "d6":
         bot.edit_message_reply_markup(message)
         number = data["value"]
@@ -290,15 +291,13 @@ def handle_steal(call):
 
 def show_steal_menu(message, user_id, page=0):
     chat_id = message.chat.id
-    page_titles, more_pages = get_titles_page(chat_id, page)
-
+    page_titles, more_pages = get_titles_page(chat_id, user_id, page)
     buttons = [
         InlineKeyboardButton(
             f"{title} | {target_user.username or target_user.first_name}",
             callback_data=callback_steal_title(target_user.id, user_id),
         )
         for target_user, title in page_titles
-        if target_user.id != user_id
     ]
     markup = InlineKeyboardMarkup()
     for button in buttons:
