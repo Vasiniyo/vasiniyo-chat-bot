@@ -28,11 +28,13 @@ decembrist_stickers = {
 
 config = toml.load("config.toml")
 
+# TODO: refactor
 # Add test modules if in test mode
 TEST_MODE = "--test" in sys.argv or os.environ.get("TEST_MODE", "").lower() == "true"
-if TEST_MODE and "test_new_category" not in config["mods"]:
-    config["mods"].append("test_new_category")
+if TEST_MODE and "test_category" not in config["mods"]:
+    config["mods"].append("test_category")
     logging.info("Test mode enabled - adding test modules")
+
 captcha_properties = {
     "gen": config["captcha_properties"]["gen"],
     "validate": config["captcha_properties"]["validate"],

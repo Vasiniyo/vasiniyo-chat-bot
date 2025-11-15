@@ -22,7 +22,6 @@ U = TypeVar("U")
 
 @dataclass
 class Pair(Generic[T, U]):
-
     x: T
     y: U
 
@@ -51,11 +50,6 @@ class Tier:
 
     value_range: Pair[int, int]
     locale: Locale
-
-
-# =============================================================================
-# WinValue
-# =============================================================================
 
 
 class WinValue:
@@ -352,9 +346,6 @@ class PlayableCategory:
                 left = mid + 1
 
         return None
-
-    def get_win_goal_text(self, language: str = lang) -> str:
-        return self.win_value.get_goal_text(language)
 
     def get_random_value(self, seed: int) -> int:
         import random

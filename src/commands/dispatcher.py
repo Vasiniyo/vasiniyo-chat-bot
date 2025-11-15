@@ -87,16 +87,29 @@ COMMANDS = {
 TEST_MODE = "--test" in sys.argv or os.environ.get("TEST_MODE", "").lower() == "true"
 
 if TEST_MODE:
-    from test_commands.test_category import handle_test_new_category
+    from test_commands.test_category import (
+        handle_test_all_categories,
+        handle_test_new_category,
+        handle_test_send_congratz,
+        handle_test_win_goal,
+    )
 
-    COMMANDS["test_new_category"] = {
+    COMMANDS["test_category"] = {
         "test_send_congratz": (
-            lambda m: send_congratulations(m.from_user, 100, "iq", m),
-            "[TEST] Choose the best boy",
+            handle_test_send_congratz,
+            "[TEST] Test congratulations message",
         ),
         "test_new_category": (
             handle_test_new_category,
             "[TEST] Simulate category reset",
+        ),
+        "test_all_categories": (
+            handle_test_all_categories,
+            "[TEST] Show all available categories",
+        ),
+        "test_win_goal": (
+            handle_test_win_goal,
+            "[TEST] Show current category win goal",
         ),
     }
 

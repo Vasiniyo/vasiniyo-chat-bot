@@ -48,23 +48,22 @@ def get_players(chat_id):
 def send_congratulations(user, value, category: PlayableCategory, message):
     """Send a congratulations message with winner picture."""
 
-    category_normal = category.locale.name[lang]
-    category_name_escaped = bot.escape_markdown_v2(category_normal)
+    category_name = category.locale.name.get(lang, category.name)
+    category_name_escaped = bot.escape_markdown_v2(category_name)
 
-    win_value_escaped = bot.escape_markdown_v2(value)
+    value_str = str(value)
+    value_escaped = bot.escape_markdown_v2(value_str)
 
-    measure_units_normal = category.locale.units[lang]
-    measure_units_escaped = bot.escape_markdown_v2(measure_units_normal)
+    units = category.locale.units.get(lang, "")
+    units_escaped = bot.escape_markdown_v2(units)
 
-    # score_msg = "а"switch(category.win_value):
-    #     case("max"): ""
+    win_goal = category.win_value.get_goal_text(lang)
+    win_goal_escaped = bot.escape_markdown_v2(win_goal)
 
-    # TODO  remake congratz msg as a member of PlayableCategory
     msg_text = (
-        "🏆 Победитель дня в категории: \n\t{}:".format(category_name_escaped)
-        + "{}".format(bot.to_link_user(user))
-        + "Целых \n\t \\[{}]".format(win_value_escaped)
-        + "из"
+        f"🏆 Победитель дня в категории:\n\t{category_name_escaped}:\n"
+        f"{bot.to_link_user(user)}\n"
+        f"{win_goal_escaped} \\[{value_escaped} {units_escaped}]"
     )
 
     # IMAGE
@@ -97,7 +96,6 @@ def send_congratulations(user, value, category: PlayableCategory, message):
 
 
 def handle_play(message):
-    """Handle the /play command - show user's value in current category."""
     chat_id = message.chat.id
     user_id = message.from_user.id
 
@@ -107,12 +105,20 @@ def handle_play(message):
     tier = category.get_tier_for_value(value)
 
     if tier:
-        phrase = random.choice(tier.phrases)
-        emoji = "🎲"  # TODO possibly select emoji for each category
+        phrases_list = tier.locale.phrases.get(lang, [])
+        if phrases_list:
+            phrase = random.choice(phrases_list)
+        else:
+            phrase = "Результат получен!"
 
-        answer = f"{emoji} [{category.name}]\n[{value}] {phrase}"
+        emoji = "🎲"
+        category_name = category.locale.name.get(lang, category.name)
+        units = category.locale.units.get(lang, "")
+
+        answer = f"{emoji} [{category_name}]\n[{value} {units}] {phrase}"
     else:
-        answer = f"❌ Ошибка: значение {value} вне диапазона категории {category.name}"
+        category_name = category.locale.name.get(lang, category.name)
+        answer = f"❌ Ошибка: значение {value} вне диапазона категории {category_name}"
 
     bot.reply_to(answer)(message)
 
@@ -129,10 +135,10 @@ def handle_winner(message):
         return
 
     category = get_current_playable_category(chat_id)
-    winner_value = category.get_win_value()
+    winner_value = category.win_value.value
+    win_type = category.win_value.type
     day_passed = is_day_passed(chat_id, PLAY_EVENT_ID)
 
-    # NOTE new players would have to wait untils the day resets to particupate
     if day_passed == 1 or day_passed is None:
         logger.info(f"Selecting new winner!")
         player_values = [
@@ -142,30 +148,31 @@ def handle_winner(message):
         logger.info(f"=== Player values for category '{category.name}' ===")
         for player, value in player_values:
             logger.info(f"\tPlayer: {player.id} ({player.username}) -> Value: {value}")
-        logger.info(f"Category win_value type: {category.win_value}")
+        logger.info(f"Category win_value type: {win_type}")
 
-        # NOTE needs testing
-        if category.win_value == "exact":
+        winner = None
+        value = None
+
+        if win_type == "exact":
             exact_winners = [(p, v) for p, v in player_values if v == winner_value]
             if exact_winners:
                 winner, value = random.choice(exact_winners)
                 logger.info(
                     f"Selected exact winner: {winner.id} ({winner.username}) with value: {value}"
                 )
-            else:  # TODO: count a win for a bot, when no players won.
-                # Currently it chooses the closes one to the winning value
+            else:
                 winner, value = min(
                     player_values, key=lambda x: abs(x[1] - winner_value)
                 )
                 logger.info(
                     f"Selected closest to exact winner: {winner.id} ({winner.username}) with value: {value}"
                 )
-        elif category.win_value == "max":
+        elif win_type == "max":
             winner, value = max(player_values, key=lambda x: x[1])
             logger.info(
                 f"Selected max winner: {winner.id} ({winner.username}) with value: {value}"
             )
-        elif category.win_value == "min":
+        elif win_type == "min":
             winner, value = min(player_values, key=lambda x: x[1])
             logger.info(
                 f"Selected min winner: {winner.id} ({winner.username}) with value: {value}"
@@ -173,8 +180,9 @@ def handle_winner(message):
         else:
             logger.info(f"Unknown win_value type category")
 
-        commit_win(chat_id, winner.id, PLAY_EVENT_ID)
-        send_congratulations(winner, value, category, message)
+        if winner is not None and value is not None:
+            commit_win(chat_id, winner.id, PLAY_EVENT_ID)
+            send_congratulations(winner, value, category, message)
 
     else:
         logger.info(f"Looking for previous winner")
@@ -184,9 +192,8 @@ def handle_winner(message):
         if last_winner:
             value = get_player_value(category, chat_id, last_winner.id)
 
-            category_name_escaped = bot.escape_markdown_v2(category.name)
-            winner_value_type_escaped = bot.escape_markdown_v2(category.win_value)
-            target_value_escaped = bot.escape_markdown_v2(winner_value)
+            category_name = category.locale.name.get(lang, category.name)
+            category_name_escaped = bot.escape_markdown_v2(category_name)
             value_escaped = bot.escape_markdown_v2(value)
             answer = (
                 "🏆 Сегодняшний победитель в категории \\[{}]: \\[{}] \\[{}]".format(

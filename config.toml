@@ -16,7 +16,10 @@
 
     "reply",
     "captcha",
-    "long_message"
+    "long_message",
+
+    # TEST
+    "test_category"
 ]
 
 [event]

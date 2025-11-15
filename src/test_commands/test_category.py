@@ -1,27 +1,25 @@
-"""Test command for simulating category reset."""
-
 from contextlib import contextmanager
 import datetime
 import logging
 import random
+from typing import Any, List, Optional, Tuple
 
 from commands.play.play_utils import (
-    CATEGORIES,
     get_current_playable_category,
     get_player_value,
 )
-from commands.play_event import PLAY_EVENT_ID, get_players
+from commands.play_event import PLAY_EVENT_ID, get_players, send_congratulations
+from config import lang
 from database.events import commit_win, get_last_winner
 from database.utils import commit_query, database_name, fetch_number
 import safely_bot_utils as bot
 
-_last_test_win = None
+_last_test_win: Optional[Tuple[int, int, int]] = None
 logger = logging.getLogger(__name__)
 
 
 @contextmanager
 def revert_db_changes():
-    """Context manager to revert database changes made during testing."""
     global _last_test_win
     _last_test_win = None
 
@@ -41,11 +39,10 @@ def revert_db_changes():
 
 
 def handle_test_new_category(message):
-    """Simulate a new day category reset for testing."""
     chat_id = message.chat.id
     rng = random.Random()
     category = get_current_playable_category(chat_id, test=True)
-    players = list(get_players(chat_id))
+    players: List = list(get_players(chat_id))
     sender = message.from_user
     if not any(p.id == sender.id for p in players):
         players.append(sender)
@@ -56,34 +53,37 @@ def handle_test_new_category(message):
     for player in players:
         value = get_player_value(category, chat_id, player.id)
         player_values.append((player, value))
-    win_value = category.get_win_value()
-    if isinstance(category.win_value, int):
-        exact_winners = [(p, v) for p, v in player_values if v == win_value]
+    
+    win_type = category.win_value.type
+    win_target = category.win_value.value
+    
+    if win_type == "exact":
+        exact_winners = [(p, v) for p, v in player_values if v == win_target]
         if exact_winners:
             winner, value = rng.choice(exact_winners)
             winner_name = bot.to_link_user(winner)
         else:
             winner = None
-            value = win_value
+            value = win_target
             winner_name = "🤖 Bot (no player hit the target value)"
+    elif win_type == "max":
+        winner, value = max(player_values, key=lambda x: x[1])
+        winner_name = bot.to_link_user(winner)
     else:
-        if category.win_value == "max":
-            winner, value = max(player_values, key=lambda x: x[1])
-        else:
-            winner, value = min(player_values, key=lambda x: x[1])
+        winner, value = min(player_values, key=lambda x: x[1])
         winner_name = bot.to_link_user(winner)
 
     category_name_escaped = bot.escape_markdown_v2(category.name)
-    win_value_type_escaped = bot.escape_markdown_v2(category.win_value)
-    target_value_escaped = bot.escape_markdown_v2(win_value)
-    value_escaped = bot.escape_markdown_v2(value)
+    win_type_escaped = bot.escape_markdown_v2(win_type)
+    target_value_escaped = bot.escape_markdown_v2(str(win_target))
+    value_escaped = bot.escape_markdown_v2(str(value))
 
     lines = [
         "========= [TEST] =========",
         "Simulating category reset.",
         "==========================",
         f"New category: {category_name_escaped}",
-        f"Winner value type: {win_value_type_escaped}",
+        f"Winner value type: {win_type_escaped}",
         f"Target value: {target_value_escaped}",
         f"New winner: {winner_name} {value_escaped}",
         "",
@@ -93,7 +93,7 @@ def handle_test_new_category(message):
     for player, player_value in sorted_players:
         is_winner = player == winner if winner else False
         winner_mark = " 👑" if is_winner else ""
-        player_value_escaped = bot.escape_markdown_v2(player_value)
+        player_value_escaped = bot.escape_markdown_v2(str(player_value))
         lines.append(
             f"  {bot.to_link_user(player)}: {player_value_escaped}{winner_mark}"
         )
@@ -111,3 +111,39 @@ def handle_test_new_category(message):
                 (chat_id, winner.id, PLAY_EVENT_ID, timestamp),
             )
     bot.reply_with_user_links("\n".join(lines))(message)
+
+
+def handle_test_send_congratz(message):
+    chat_id = message.chat.id
+    category = get_current_playable_category(chat_id)
+    user = message.from_user
+    value = get_player_value(category, chat_id, user.id)
+    send_congratulations(user, value, category, message)
+
+
+def handle_test_all_categories(message):
+    from commands.play.play_config import CATEGORIES
+    
+    chat_id = message.chat.id
+    user = message.from_user
+    
+    lines = ["========= [TEST] =========", "All categories:", ""]
+    
+    for cat_name, cat_spec in CATEGORIES.items():
+        lines.append(f"• {cat_name}")
+    
+    bot.reply_to("\n".join(lines))(message)
+
+
+def handle_test_win_goal(message):
+    chat_id = message.chat.id
+    category = get_current_playable_category(chat_id)
+    
+    category_name = category.locale.name.get(lang, category.name)
+    win_goal = category.win_value.get_goal_text(lang)
+    
+    category_name_escaped = bot.escape_markdown_v2(category_name)
+    win_goal_escaped = bot.escape_markdown_v2(win_goal)
+    
+    answer = f"Category: {category_name_escaped}\nWin goal: {win_goal_escaped}"
+    bot.reply_to(answer)(message)
