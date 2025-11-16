@@ -71,7 +71,7 @@ class PlayableCategoryBuilder:
         self._win_locale_spec = win_locale
         return self
 
-    def continuous(self, value: bool = True) -> PlayableCategoryBuilder:
+    def is_continuous(self, value: bool = True) -> PlayableCategoryBuilder:
         self._continuous = value
         return self
 
@@ -285,7 +285,7 @@ def create_category(
             .with_win_value(win_value)
             .with_locale(locale)
             .with_win_locale(win_locale)
-            .continuous(continuous)
+            .is_continuous(continuous)
         )
 
         category = builder.build()
@@ -317,7 +317,7 @@ def create_all_categories(
     schema_valid_specs: List[Dict] = []
 
     logger.info("=" * 80)
-    logger.info("PHASE 1: Validating schemas for all categories...")
+    logger.info("Validating schemas...")
     logger.info("=" * 80)
 
     for spec in category_specs:
@@ -346,7 +346,7 @@ def create_all_categories(
             schema_valid_specs.append(spec)
 
     logger.info("=" * 80)
-    logger.info(f"PHASE 2 & 3: Building {len(schema_valid_specs)} categories...")
+    logger.info(f"Building {len(schema_valid_specs)} categories...")
     logger.info("=" * 80)
 
     successful_categories = []
@@ -362,7 +362,7 @@ def create_all_categories(
                 .with_win_value(spec["win_value"])
                 .with_locale(spec["locale"])
                 .with_win_locale(spec.get("win_locale"))
-                .continuous(spec.get("continuous", True))
+                .is_continuous(spec.get("continuous", True))
             )
 
             category = builder.build()

@@ -78,7 +78,9 @@ class WinValue:
         return f"WinValue(type={self.type!r}, value={self.value})"
 
     def get_goal_text(self, language: str) -> str:
-        return self.locale.goal_templates.get(language, "")
+        return self.locale.goal_templates.get(
+            language, ""
+        )  # NOTE: returns nothing for now, if locale
 
     @staticmethod
     def create_exact(exact_value: int, locale: "WinValue.Locale") -> "WinValue":

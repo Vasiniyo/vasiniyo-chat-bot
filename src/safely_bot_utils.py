@@ -56,16 +56,16 @@ edit_message_reply_markup = lambda m: (
 
 reply_to = lambda t, **kwargs: lambda m: do_action(bot.reply_to)(m, t, **kwargs)
 
-reply_with_user_links = lambda text: reply_to(
+reply_with_user_links = lambda text, mode="Markdown": reply_to(
     text,
-    parse_mode="Markdown",
+    parse_mode=mode,
     disable_notification=True,
     link_preview_options=LinkPreviewOptions(is_disabled=True),
 )
 
 
 # NOTE probably should leave only one of makrdown senders
-def escape_markdown_v2(text):
+def escape_markdown_v2(text) -> str:
     """Escape special characters for MarkdownV2."""
     if text is None:
         return ""
@@ -84,6 +84,21 @@ def to_link_user(user):
     if not (user.username is None):
         return f"{user.first_name} ([{user.username}](t.me/{user.username}))"
     return f"{user.first_name}"
+
+
+def to_link_user_v2(user):
+    """MarkdownV2 compatible user link"""
+    if user is None:
+        return escape_markdown_v2(phrases("unknown_user"))
+
+    first_name_escaped = escape_markdown_v2(user.first_name)
+
+    if user.username:
+        username_escaped = escape_markdown_v2(user.username)
+        url = f"https://t\\.me/{username_escaped}"
+        return f"{first_name_escaped} \\([{username_escaped}]({url})\\)"
+
+    return first_name_escaped
 
 
 def daily_hash(user_id):

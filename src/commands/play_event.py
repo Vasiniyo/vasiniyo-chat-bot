@@ -2,9 +2,12 @@
 
 from io import BytesIO
 import logging
+from os import replace
 import random
 
 from PIL import Image
+from telebot.types import LinkPreviewOptions
+from telebot.util import user_link
 
 from config import default_winner_avatar, lang, phrases, winner_pictures
 from database.events import commit_win, fetch_top, get_last_winner, is_day_passed
@@ -16,6 +19,14 @@ from .play.play_utils import get_current_playable_category, get_player_value
 # Event ID for play categories
 PLAY_EVENT_ID = 1
 logger = logging.getLogger(__name__)
+
+
+def _to_bold(str: str) -> str:
+    return f"*{str}*"
+
+
+def _to_italic(str: str) -> str:
+    return f"_{str}_"
 
 
 def get_players(chat_id):
@@ -45,27 +56,105 @@ def get_players(chat_id):
     return players
 
 
+def handle_play(message):
+    chat_id = message.chat.id
+    user_id = message.from_user.id
+
+    category = get_current_playable_category(chat_id)
+    value = get_player_value(category, chat_id, user_id)
+
+    tier = category.get_tier_for_value(value)
+
+    if tier:
+        phrases_list = tier.locale.phrases.get(lang, [])
+        if phrases_list:
+            phrase = random.choice(phrases_list)
+        else:
+            phrase = "Результат получен!"
+
+        # TODO make this locale-based
+        # fmt: off
+        msg_template = (
+            "{intro} {cat}"
+            "\n\n{measuring} {units}\\!"
+            "\n{mark}\\[{value}\\]: {phrase}\\"
+        )
+        # fmt: on
+
+        intro_formatted = bot.escape_markdown_v2("Играем в категорию....:")
+        measuring_formatted = bot.escape_markdown_v2("Хе-хе! Меряю, сколько в тебe")
+
+        category_name = category.locale.name.get(lang, category.name)
+        units = category.locale.units.get(lang, "")
+
+        category_name_formatted = bot.escape_markdown_v2(category_name)
+        units_formatted = bot.escape_markdown_v2(units)
+        value_formatted = bot.escape_markdown_v2(str(value))
+        phrase_formatted = bot.escape_markdown_v2(phrase)
+        mark = bot.escape_markdown_v2("  😺 ")
+
+        answer = msg_template.format(
+            intro=intro_formatted,
+            cat=_to_bold(category_name_formatted),
+            measuring=measuring_formatted,
+            units=units_formatted,
+            mark=mark,
+            value=_to_bold(value_formatted),
+            phrase=_to_italic(phrase_formatted),
+        )
+
+    else:
+        category_name = category.locale.name.get(lang, category.name)
+        answer = f"❌ Ошибка: значение {value} вне диапазона категории {category_name}"
+
+    bot.reply_with_user_links(answer, mode="MarkdownV2")(message)
+
+
+def _format_winner_msg_text(user, value, category: PlayableCategory):
+    # fmt: off
+    msg_template = (
+        "{intro} \\({cat}\\):" 
+        "\n{mark} {user}\\!" 
+        "\n\nЦелых {value} {units}\\!" 
+        "\n{outro}"
+    )
+    # fmt: on
+
+    # TODO: move to the *locale* config
+    intro = bot.escape_markdown_v2("Победитель в сегодняшей категории")
+    outro = bot.escape_markdown_v2("Ого! Поздравляю!")
+
+    user_str = bot.to_link_user_v2(user)
+
+    category_name = category.locale.name.get(lang, category.name)
+    category_name_formatted = bot.escape_markdown_v2(category_name)
+
+    value = f"[{str(value)}]"
+    value_formatted = bot.escape_markdown_v2(value)
+    value_mark = bot.escape_markdown_v2("  😺 ")  # TODO add range of cats!
+
+    units = category.locale.units.get(lang, "")
+    units_formatted = bot.escape_markdown_v2(units)
+
+    win_goal = category.win_value.get_goal_text(lang)
+    win_goal_formatted = bot.escape_markdown_v2(win_goal)
+
+    msg_text = msg_template.format(
+        intro=_to_bold(intro),
+        cat=_to_italic(category_name_formatted),
+        mark=value_mark,
+        user=user_str,
+        value=_to_bold(value_formatted),
+        units=units_formatted,
+        outro=outro,
+    )
+    return msg_text
+
+
 def send_congratulations(user, value, category: PlayableCategory, message):
     """Send a congratulations message with winner picture."""
 
-    category_name = category.locale.name.get(lang, category.name)
-    category_name_escaped = bot.escape_markdown_v2(category_name)
-
-    value_str = str(value)
-    value_escaped = bot.escape_markdown_v2(value_str)
-
-    units = category.locale.units.get(lang, "")
-    units_escaped = bot.escape_markdown_v2(units)
-
-    win_goal = category.win_value.get_goal_text(lang)
-    win_goal_escaped = bot.escape_markdown_v2(win_goal)
-
-    msg_text = (
-        f"🏆 Победитель дня в категории:\n\t{category_name_escaped}:\n"
-        f"{bot.to_link_user(user)}\n"
-        f"{win_goal_escaped} \\[{value_escaped} {units_escaped}]"
-    )
-
+    msg_text = _format_winner_msg_text(user, value, category)
     # IMAGE
     try:
         profile_photo = bot.download_profile_photo(user.id)
@@ -92,35 +181,8 @@ def send_congratulations(user, value, category: PlayableCategory, message):
         bot.send_photo_with_user_links(background, msg_text)(message)
     except Exception as e:
         logging.exception(e)
-        bot.reply_with_user_links(msg_text)(message)
 
-
-def handle_play(message):
-    chat_id = message.chat.id
-    user_id = message.from_user.id
-
-    category = get_current_playable_category(chat_id)
-    value = get_player_value(category, chat_id, user_id)
-
-    tier = category.get_tier_for_value(value)
-
-    if tier:
-        phrases_list = tier.locale.phrases.get(lang, [])
-        if phrases_list:
-            phrase = random.choice(phrases_list)
-        else:
-            phrase = "Результат получен!"
-
-        emoji = "🎲"
-        category_name = category.locale.name.get(lang, category.name)
-        units = category.locale.units.get(lang, "")
-
-        answer = f"{emoji} [{category_name}]\n[{value} {units}] {phrase}"
-    else:
-        category_name = category.locale.name.get(lang, category.name)
-        answer = f"❌ Ошибка: значение {value} вне диапазона категории {category_name}"
-
-    bot.reply_to(answer)(message)
+        bot.reply_with_user_links(msg_text, mode="MarkdownV2")(message)
 
 
 def handle_winner(message):
@@ -191,16 +253,9 @@ def handle_winner(message):
 
         if last_winner:
             value = get_player_value(category, chat_id, last_winner.id)
+            msg_text = _format_winner_msg_text(last_winner, value, category)
 
-            category_name = category.locale.name.get(lang, category.name)
-            category_name_escaped = bot.escape_markdown_v2(category_name)
-            value_escaped = bot.escape_markdown_v2(value)
-            answer = (
-                "🏆 Сегодняшний победитель в категории \\[{}]: \\[{}] \\[{}]".format(
-                    category_name_escaped, bot.to_link_user(last_winner), value_escaped
-                )
-            )
-            bot.reply_with_user_links(answer)(message)
+            bot.reply_with_user_links(msg_text, mode="MarkdownV2")(message)
 
         else:
             handle_winner(message)

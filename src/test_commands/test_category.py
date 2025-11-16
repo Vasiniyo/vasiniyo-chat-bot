@@ -4,10 +4,7 @@ import logging
 import random
 from typing import Any, List, Optional, Tuple
 
-from commands.play.play_utils import (
-    get_current_playable_category,
-    get_player_value,
-)
+from commands.play.play_utils import get_current_playable_category, get_player_value
 from commands.play_event import PLAY_EVENT_ID, get_players, send_congratulations
 from config import lang
 from database.events import commit_win, get_last_winner
@@ -53,10 +50,10 @@ def handle_test_new_category(message):
     for player in players:
         value = get_player_value(category, chat_id, player.id)
         player_values.append((player, value))
-    
+
     win_type = category.win_value.type
     win_target = category.win_value.value
-    
+
     if win_type == "exact":
         exact_winners = [(p, v) for p, v in player_values if v == win_target]
         if exact_winners:
@@ -123,27 +120,27 @@ def handle_test_send_congratz(message):
 
 def handle_test_all_categories(message):
     from commands.play.play_config import CATEGORIES
-    
+
     chat_id = message.chat.id
     user = message.from_user
-    
+
     lines = ["========= [TEST] =========", "All categories:", ""]
-    
+
     for cat_name, cat_spec in CATEGORIES.items():
         lines.append(f"• {cat_name}")
-    
+
     bot.reply_to("\n".join(lines))(message)
 
 
 def handle_test_win_goal(message):
     chat_id = message.chat.id
     category = get_current_playable_category(chat_id)
-    
+
     category_name = category.locale.name.get(lang, category.name)
-    win_goal = category.win_value.get_goal_text(lang)
-    
     category_name_escaped = bot.escape_markdown_v2(category_name)
+
+    win_goal = category.win_value.get_goal_text(lang)
     win_goal_escaped = bot.escape_markdown_v2(win_goal)
-    
+
     answer = f"Category: {category_name_escaped}\nWin goal: {win_goal_escaped}"
     bot.reply_to(answer)(message)
