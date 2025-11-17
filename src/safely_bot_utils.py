@@ -183,14 +183,16 @@ get_file = lambda file_id: (do_action(bot.get_file)(file_id))
 
 download_file = lambda file_path: (do_action(bot.download_file)(file_path))
 
-send_photo_with_user_links = lambda photo, caption: lambda message: (
-    do_action(bot.send_photo)(
-        message.chat.id,
-        reply_to_message_id=message.message_id,
-        photo=photo,
-        caption=caption,
-        parse_mode="Markdown",
-        disable_notification=True,
+send_photo_with_user_links = (
+    lambda photo, caption, parse_mode="Markdown": lambda message: (
+        do_action(bot.send_photo)(
+            message.chat.id,
+            reply_to_message_id=message.message_id,
+            photo=photo,
+            caption=caption,
+            parse_mode=parse_mode,
+            disable_notification=True,
+        )
     )
 )
 

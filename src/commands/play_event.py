@@ -184,7 +184,9 @@ def send_congratulations(user, value, category: PlayableCategory, message):
         background.save(output, format="PNG")
         output.seek(0)
 
-        bot.send_photo_with_user_links(background, msg_text)(message)
+        bot.send_photo_with_user_links(background, msg_text, parse_mode="MarkdownV2")(
+            message
+        )
     except Exception as e:
         logging.exception(e)
 

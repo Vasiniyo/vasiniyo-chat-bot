@@ -83,36 +83,6 @@ COMMANDS = {
 }
 
 
-# FIX move testing logic to a dedicated module
-TEST_MODE = "--test" in sys.argv or os.environ.get("TEST_MODE", "").lower() == "true"
-
-if TEST_MODE:
-    from test_commands.test_category import (
-        handle_test_all_categories,
-        handle_test_new_category,
-        handle_test_send_congratz,
-        handle_test_win_goal,
-    )
-
-    COMMANDS["test_category"] = {
-        "test_send_congratz": (
-            handle_test_send_congratz,
-            "[TEST] Test congratulations message",
-        ),
-        "test_new_category": (
-            handle_test_new_category,
-            "[TEST] Simulate category reset",
-        ),
-        "test_all_categories": (
-            handle_test_all_categories,
-            "[TEST] Show all available categories",
-        ),
-        "test_win_goal": (
-            handle_test_win_goal,
-            "[TEST] Show current category win goal",
-        ),
-    }
-
 COMMANDS = check_mods(COMMANDS)
 
 COMMANDS["help"] = (handle_help(COMMANDS), COMMANDS["help"][1])
