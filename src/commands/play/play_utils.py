@@ -75,10 +75,3 @@ def force_category_refresh(chat_id: int) -> PlayableCategory:
     if category is None:
         raise RuntimeError("Failed to refresh category")
     return category
-
-
-def get_player_value(category: PlayableCategory, chat_id: int, user_id: int) -> int:
-    today = datetime.date.today()
-    seed = hash((user_id, chat_id, today.year, today.month, today.day, category.name))
-
-    return category.get_random_value(seed)

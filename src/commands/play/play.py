@@ -19,6 +19,16 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 U = TypeVar("U")
 
+# fmt: off
+EMOJI_TIERS: Dict[int, List[str]] = {
+    1: ["😢", "😞", "😔", "😭", "💔", "😰", "😓", "😥", "😣", "😖", "😫", "😩", "😤"],
+    2: ["😐", "😑", "😕", "🙁", "😬", "😶", "😯", "😲", "😧", "😦", "😒"],
+    3: ["😊", "🙂", "😌", "😏", "😀", "😃", "😄", "😺", "😸", "😇", "😎"],
+    4: ["😁", "😆", "🤩", "😍", "😻", "💪", "👍", "✨", "🌟", "💫", "🔥", "🎉", "🎊",],
+    5: ["🏆", "👑", "💎", "🌈", "🎯", "💯", "🚀", "⚡", "💥", "🔱", "🎭"],
+}
+# fmt: on
+
 
 @dataclass
 class Pair(Generic[T, U]):
@@ -364,3 +374,37 @@ class PlayableCategory:
             current_index += tier_size
 
         return self._min_range
+
+    def get_random_value_for_user(self, user_daily_hash: int) -> int:
+        category_hash = sum(ord(c) for c in self.name)
+        combined_seed = user_daily_hash + category_hash
+        return self.get_random_value(combined_seed)
+
+    def get_emoji_for_value(
+        self, value: int, seed: Optional[int] = None, force_top: bool = False
+    ) -> str:
+        from bisect import bisect_left
+        import random
+
+        if force_top:
+            tier = 5
+        else:
+            percentile = (
+                50.0
+                if self._max_range == self._min_range
+                else (
+                    (value - self._min_range)
+                    / (self._max_range - self._min_range)
+                    * 100
+                )
+            )
+
+            tier = bisect_left([20, 40, 60, 80], percentile) + 1
+
+        emoji_pool = EMOJI_TIERS[tier]
+
+        if seed is not None:
+            rng = random.Random(seed)
+            return rng.choice(emoji_pool)
+        else:
+            return random.choice(emoji_pool)

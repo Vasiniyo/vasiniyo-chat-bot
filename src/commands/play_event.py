@@ -1,5 +1,6 @@
 """Play event handlers for the bot."""
 
+import datetime
 from io import BytesIO
 import logging
 from os import replace
@@ -14,7 +15,7 @@ from database.events import commit_win, fetch_top, get_last_winner, is_day_passe
 import safely_bot_utils as bot
 
 from .play.play import PlayableCategory
-from .play.play_utils import get_current_playable_category, get_player_value
+from .play.play_utils import get_current_playable_category
 
 # Event ID for play categories
 PLAY_EVENT_ID = 1
@@ -61,7 +62,8 @@ def handle_play(message):
     user_id = message.from_user.id
 
     category = get_current_playable_category(chat_id)
-    value = get_player_value(category, chat_id, user_id)
+    user_hash = bot.daily_hash(user_id)
+    value = category.get_random_value_for_user(user_hash)
 
     tier = category.get_tier_for_value(value)
 
@@ -77,7 +79,7 @@ def handle_play(message):
         msg_template = (
             "{intro} {cat}"
             "\n\n{measuring} {units}\\!"
-            "\n{mark}\\[{value}\\]: {phrase}\\"
+            "\n{mark}\\[{value}\\]: {phrase}"
         )
         # fmt: on
 
@@ -91,7 +93,9 @@ def handle_play(message):
         units_formatted = bot.escape_markdown_v2(units)
         value_formatted = bot.escape_markdown_v2(str(value))
         phrase_formatted = bot.escape_markdown_v2(phrase)
-        mark = bot.escape_markdown_v2("  😺 ")
+
+        emoji = category.get_emoji_for_value(value, seed=None)
+        mark = bot.escape_markdown_v2(f"  {emoji} ")
 
         answer = msg_template.format(
             intro=intro_formatted,
@@ -129,9 +133,11 @@ def _format_winner_msg_text(user, value, category: PlayableCategory):
     category_name = category.locale.name.get(lang, category.name)
     category_name_formatted = bot.escape_markdown_v2(category_name)
 
-    value = f"[{str(value)}]"
-    value_formatted = bot.escape_markdown_v2(value)
-    value_mark = bot.escape_markdown_v2("  😺 ")  # TODO add range of cats!
+    emoji = category.get_emoji_for_value(value, force_top=True)
+    value_mark = bot.escape_markdown_v2(f"  {emoji} ")
+
+    value_str = f"[{str(value)}]"
+    value_formatted = bot.escape_markdown_v2(value_str)
 
     units = category.locale.units.get(lang, "")
     units_formatted = bot.escape_markdown_v2(units)
@@ -204,7 +210,8 @@ def handle_winner(message):
     if day_passed == 1 or day_passed is None:
         logger.info(f"Selecting new winner!")
         player_values = [
-            (p, get_player_value(category, chat_id, p.id)) for p in players
+            (p, category.get_random_value_for_user(bot.daily_hash(p.id)))
+            for p in players
         ]
 
         logger.info(f"=== Player values for category '{category.name}' ===")
@@ -252,7 +259,8 @@ def handle_winner(message):
         last_winner = next(filter(lambda p: p.id == last_winner_id, players), None)
 
         if last_winner:
-            value = get_player_value(category, chat_id, last_winner.id)
+            user_hash = bot.daily_hash(last_winner.id)
+            value = category.get_random_value_for_user(user_hash)
             msg_text = _format_winner_msg_text(last_winner, value, category)
 
             bot.reply_with_user_links(msg_text, mode="MarkdownV2")(message)

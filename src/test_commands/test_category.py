@@ -4,7 +4,7 @@ import logging
 import random
 from typing import Any, List, Optional, Tuple
 
-from commands.play.play_utils import get_current_playable_category, get_player_value
+from commands.play.play_utils import get_current_playable_category
 from commands.play_event import PLAY_EVENT_ID, get_players, send_congratulations
 from config import lang
 from database.events import commit_win, get_last_winner
@@ -48,7 +48,8 @@ def handle_test_new_category(message):
         return
     player_values = []
     for player in players:
-        value = get_player_value(category, chat_id, player.id)
+        user_hash = bot.daily_hash(player.id)
+        value = category.get_random_value_for_user(user_hash)
         player_values.append((player, value))
 
     win_type = category.win_value.type
@@ -114,7 +115,8 @@ def handle_test_send_congratz(message):
     chat_id = message.chat.id
     category = get_current_playable_category(chat_id)
     user = message.from_user
-    value = get_player_value(category, chat_id, user.id)
+    user_hash = bot.daily_hash(user.id)
+    value = category.get_random_value_for_user(user_hash)
     send_congratulations(user, value, category, message)
 
 

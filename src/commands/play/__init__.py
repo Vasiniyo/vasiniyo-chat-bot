@@ -2,7 +2,7 @@
 
 from .play import Pair, PlayableCategory, Tier, WinValue
 from .play_config import CATEGORIES
-from .play_utils import get_current_playable_category, get_player_value
+from .play_utils import get_current_playable_category
 from . import play_schema
 
 __all__ = [
@@ -12,6 +12,5 @@ __all__ = [
     "WinValue",
     "CATEGORIES",
     "get_current_playable_category",
-    "get_player_value",
     "play_schema",
 ]
