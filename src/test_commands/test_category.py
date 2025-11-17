@@ -6,7 +6,7 @@ from typing import Any, List, Optional, Tuple
 
 from commands.play.play_utils import get_current_playable_category
 from commands.play_event import PLAY_EVENT_ID, get_players, send_congratulations
-from config import lang
+from config import config
 from database.events import commit_win, get_last_winner
 from database.utils import commit_query, database_name, fetch_number
 import safely_bot_utils as bot
@@ -138,10 +138,10 @@ def handle_test_win_goal(message):
     chat_id = message.chat.id
     category = get_current_playable_category(chat_id)
 
-    category_name = category.locale.name.get(lang, category.name)
+    category_name = category.locale.name.get(config.language, category.name)
     category_name_escaped = bot.escape_markdown_v2(category_name)
 
-    win_goal = category.win_value.get_goal_text(lang)
+    win_goal = category.win_value.get_goal_text(config.language)
     win_goal_escaped = bot.escape_markdown_v2(win_goal)
 
     answer = f"Category: {category_name_escaped}\nWin goal: {win_goal_escaped}"

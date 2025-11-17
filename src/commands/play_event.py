@@ -1,16 +1,12 @@
 """Play event handlers for the bot."""
 
-import datetime
 from io import BytesIO
 import logging
-from os import replace
 import random
 
 from PIL import Image
-from telebot.types import LinkPreviewOptions
-from telebot.util import user_link
 
-from config import default_winner_avatar, lang, phrases, winner_pictures
+from config import config
 from database.events import commit_win, fetch_top, get_last_winner, is_day_passed
 import safely_bot_utils as bot
 
@@ -68,7 +64,7 @@ def handle_play(message):
     tier = category.get_tier_for_value(value)
 
     if tier:
-        phrases_list = tier.locale.phrases.get(lang, [])
+        phrases_list = tier.locale.phrases.get(config.language, [])
         if phrases_list:
             phrase = random.choice(phrases_list)
         else:
@@ -86,8 +82,8 @@ def handle_play(message):
         intro_formatted = bot.escape_markdown_v2("Играем в категорию....:")
         measuring_formatted = bot.escape_markdown_v2("Хе-хе! Меряю, сколько в тебe")
 
-        category_name = category.locale.name.get(lang, category.name)
-        units = category.locale.units.get(lang, "")
+        category_name = category.locale.name.get(config.language, category.name)
+        units = category.locale.units.get(config.language, "")
 
         category_name_formatted = bot.escape_markdown_v2(category_name)
         units_formatted = bot.escape_markdown_v2(units)
@@ -108,7 +104,7 @@ def handle_play(message):
         )
 
     else:
-        category_name = category.locale.name.get(lang, category.name)
+        category_name = category.locale.name.get(config.language, category.name)
         answer = f"❌ Ошибка: значение {value} вне диапазона категории {category_name}"
 
     bot.reply_with_user_links(answer, mode="MarkdownV2")(message)
@@ -130,7 +126,7 @@ def _format_winner_msg_text(user, value, category: PlayableCategory):
 
     user_str = bot.to_link_user_v2(user)
 
-    category_name = category.locale.name.get(lang, category.name)
+    category_name = category.locale.name.get(config.language, category.name)
     category_name_formatted = bot.escape_markdown_v2(category_name)
 
     emoji = category.get_emoji_for_value(value, force_top=True)
@@ -139,10 +135,10 @@ def _format_winner_msg_text(user, value, category: PlayableCategory):
     value_str = f"[{str(value)}]"
     value_formatted = bot.escape_markdown_v2(value_str)
 
-    units = category.locale.units.get(lang, "")
+    units = category.locale.units.get(config.language, "")
     units_formatted = bot.escape_markdown_v2(units)
 
-    win_goal = category.win_value.get_goal_text(lang)
+    win_goal = category.win_value.get_goal_text(config.language)
     win_goal_formatted = bot.escape_markdown_v2(win_goal)
 
     msg_text = msg_template.format(
@@ -165,19 +161,21 @@ def send_congratulations(user, value, category: PlayableCategory, message):
     try:
         profile_photo = bot.download_profile_photo(user.id)
         avatar = Image.open(
-            BytesIO(profile_photo) if profile_photo else default_winner_avatar
+            BytesIO(profile_photo)
+            if profile_photo
+            else config.event.default_winner_avatar
         )
-        winner_picture_template = winner_pictures[
-            bot.daily_hash(user.id) % len(winner_pictures)
+        winner_picture_template = config.event.winner_pictures[
+            bot.daily_hash(user.id) % len(config.event.winner_pictures)
         ]
-        avatar_size = winner_picture_template.get("avatar_size")
+        avatar_size = winner_picture_template.avatar_size
         avatar = avatar.resize((avatar_size, avatar_size))
-        background = Image.open(winner_picture_template.get("background"))
+        background = Image.open(winner_picture_template.background)
         background.paste(
             avatar,
             (
-                winner_picture_template.get("avatar_position_x"),
-                winner_picture_template.get("avatar_position_y"),
+                winner_picture_template.avatar_position_x,
+                winner_picture_template.avatar_position_y,
             ),
         )
         output = BytesIO()

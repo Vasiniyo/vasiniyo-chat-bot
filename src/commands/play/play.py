@@ -12,7 +12,7 @@ from typing import (
     Union,
 )
 
-from config import lang
+from config import config
 
 logger = logging.getLogger(__name__)
 
@@ -222,15 +222,12 @@ class PlayableCategory:
 
     def _validate_locales(self) -> List[str]:
         errors = []
-
-        global lang
-        required_language = lang
+        required_language = config.language
 
         if required_language not in self.locale.name:
             errors.append(
                 f"Category locale 'name' missing required language '{required_language}'"
             )
-
         if required_language not in self.locale.units:
             errors.append(
                 f"Category locale 'units' missing required language '{required_language}'"
