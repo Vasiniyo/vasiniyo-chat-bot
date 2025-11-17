@@ -1,6 +1,8 @@
 import logging
 from math import e
+import os
 from random import random
+import sys
 
 from telebot.types import Message, Sticker
 
@@ -13,10 +15,9 @@ from captcha_manager import (
 )
 from commands.anime import handle_anime
 from commands.drink_or_not import handle_drink_or_not
-from commands.event import handle_top_espers, play, send_players
 from commands.help import handle_help, handle_inline_help, handle_unknown
-from commands.how_much import handle_how_much
 from commands.like import handle_like, handle_top_likes
+from commands.play_event import handle_play, handle_top_winners, handle_winner
 from commands.roll_custom_title import handle_title_change_attempt, prepare_game, start
 from commands.stickers import handle_stickers
 from commands.text import (
@@ -69,38 +70,38 @@ def filter_modules(modules):
     return res
 
 
-COMMANDS = filter_modules(
-    {
-        "core": {"help": (None, bot.phrases("help_help"))},
-        "anime": {"anime": (handle_anime, bot.phrases("anime_help"))},
-        "likes": {
-            "top_likes": (handle_top_likes, bot.phrases("top_likes_help")),
-            "like": (handle_like, bot.phrases("like_help")),
-        },
-        "roll_title": {
-            "rename": (prepare_game, bot.phrases("rename_help")),
-            "reg": (start, bot.phrases("reg_help")),
-        },
-        "drink_or_not": {
-            "drink_or_not": (
-                handle_drink_or_not(config.drinks),
-                bot.phrases("drink_or_not_help"),
-            )
-        },
-        "how_much": {
-            "how_much_esper": (
-                handle_how_much(config.espers),
-                bot.phrases("how_much_esper_help"),
-            )
-        },
-        "event": {
-            "top_espers": (handle_top_espers, bot.phrases("top_espers_help")),
-            "players": (send_players, bot.phrases("players_help")),
-            "play": (play, bot.phrases("play_help")),
-        },
-    }
-)
+COMMANDS = {
+    "core": {"help": (None, bot.phrases("help_help"))},
+    "anime": {"anime": (handle_anime, bot.phrases("anime_help"))},
+    "likes": {
+        "top_likes": (handle_top_likes, bot.phrases("top_likes_help")),
+        "like": (handle_like, bot.phrases("like_help")),
+    },
+    "roll_title": {
+        "rename": (prepare_game, bot.phrases("rename_help")),
+        "reg": (start, bot.phrases("reg_help")),
+    },
+    "drink_or_not": {
+        "drink_or_not": (
+            handle_drink_or_not(config.drinks),
+            bot.phrases("drink_or_not_help"),
+        )
+    },
+    "play": {
+        "play": (handle_play, "Узнать своё значение в сегодняшней категории"),
+        "winner": (handle_winner, "Показать победителя дня"),
+        "top_winners": (handle_top_winners, "Топ победителей за всё время"),
+    },
+}
+
+
+# FIX move testing logic to a dedicated module
+TEST_MODE = "--test" in sys.argv or os.environ.get("TEST_MODE", "").lower() == "true"
+
+COMMANDS = filter_modules(COMMANDS)
+
 COMMANDS["help"] = (handle_help(COMMANDS), COMMANDS["help"][1])
+
 
 laplace_cdf = lambda L: lambda M: lambda x: (
     0.5 * e ** ((x - M) / L) if x < M else 1.0 - 0.5 / e ** ((x - M) / L)

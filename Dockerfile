@@ -13,4 +13,5 @@ RUN --mount=type=cache,target=/root/.cache/pip\
 
 VOLUME ["/data"]
 
+# NOTE: add `--test` flag to run in debug mode
 CMD ["python", "src/main.py"]

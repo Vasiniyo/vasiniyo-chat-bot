@@ -20,6 +20,7 @@ if [ $? -ne 0 ]; then
 fi
 echo "Stopping old $CONTAINER_NAME..." && docker stop "$CONTAINER_NAME" 2>/dev/null
 echo "Removing old $CONTAINER_NAME..." && docker rm "$CONTAINER_NAME" 2>/dev/null
+
 docker run --rm\
            --name "$CONTAINER_NAME"\
            $(test -n "$BOT_API_TOKEN" && echo "-e BOT_API_TOKEN=$BOT_API_TOKEN")\

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import logging
 import os
 from pathlib import Path
+import sys
 
 import telebot
 import toml
@@ -112,6 +113,19 @@ bot = telebot.TeleBot(_api_token)
 _toml_config = toml.load("config.toml")
 _unique_ids = _toml_config.get("unique_file_id", {})
 _sticker_pack_names = {unique_id.split(";")[0] for unique_id in _unique_ids.values()}
+
+# Add test modules if in test mode
+TEST_MODE = "--test" in sys.argv or os.environ.get("TEST_MODE", "").lower() == "true"
+if TEST_MODE and "test_new_category" not in _toml_config["mods"]:
+    _toml_config["mods"].append("test_new_category")
+    logging.info("Test mode enabled - adding test modules")
+captcha_properties = {
+    "gen": _toml_config["captcha_properties"]["gen"],
+    "validate": _toml_config["captcha_properties"]["validate"],
+    # types of content that the captcha will intercept as a check on the user's answer
+    "content_types": _toml_config["captcha_properties"].get("content_types", ["text"]),
+}
+captcha_content_types = captcha_properties["content_types"]
 
 
 def get_sticker_set(pack):
@@ -252,7 +266,7 @@ config = Config(
             "anime",
             "event",
             "likes",
-            "how_much",
+            "play",
             "roll_title",
             "drink_or_not",
             "reply",
