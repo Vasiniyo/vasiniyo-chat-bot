@@ -4,6 +4,8 @@ import os
 from random import random
 import sys
 
+from telebot.types import Message, Sticker
+
 from captcha_manager import (
     CAPTCHA_USERS,
     handle_captcha_button_press,
