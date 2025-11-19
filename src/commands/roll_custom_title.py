@@ -380,7 +380,7 @@ def roll_dice(
 
 
 def _handle_d6(message: Message, value: int, user_id: int) -> None:
-    dice_value, success = roll_dice(message, user_id)
+    dice_value, success = roll_dice(message, user_id, value)
     if success:
         response = _wrap_new_title(bot.edit_message_text_later)
         _set_random_title(response, message.chat.id, user_id)(message)
