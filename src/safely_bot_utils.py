@@ -1,14 +1,26 @@
 import asyncio
+from concurrent.futures import Future
 import datetime
 from locale import locale
-import logging
 import random
 import threading
+from typing import Callable, Iterable, Optional, ParamSpec, TypeVar
 
-from telebot.types import LinkPreviewOptions
+from telebot.types import (
+    CallbackQuery,
+    ChatMember,
+    File,
+    InlineQuery,
+    LinkPreviewOptions,
+    Message,
+    User,
+)
 
 from config import bot, config
-from logger import logger
+from logger import get_json_logger, logger
+
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 def start_loop():
@@ -16,20 +28,20 @@ def start_loop():
     loop.run_forever()
 
 
-def do_action(func):
-    def wrapper(*args, **kwargs):
+def do_action(func: Callable[P, R]) -> Callable[P, R]:
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> Optional[R]:
         try:
             return logger(func)(*args, **kwargs)
         except Exception as e:
-            logging.exception(e)
+            get_json_logger().exception(e)
             return None
 
     return wrapper
 
 
 @logger
-def delete_message_later(message, delay=10):
-    async def delete_message():
+def delete_message_later(message: Message, delay=10) -> None:
+    async def delete_message() -> None:
         await asyncio.sleep(delay)
         do_action(bot.delete_message)(message.chat.id, message.message_id)
 
@@ -37,35 +49,44 @@ def delete_message_later(message, delay=10):
 
 
 @logger
-def edit_message_text_later(text, **kwargs):
-    async def edit_message(message, delay):
+def edit_message_text_later(text: str, **kwargs) -> Callable[[Message], Future]:
+    async def edit_message(message: Message, delay: int):
         await asyncio.sleep(delay)
         return edit_message_text(text, **kwargs)(message)
 
-    return lambda m, delay=5: asyncio.run_coroutine_threadsafe(
-        edit_message(m, delay), loop
+    return lambda message, delay=5: (
+        asyncio.run_coroutine_threadsafe(edit_message(message, delay), loop)
     )
 
 
-edit_message_text = lambda text, **kwargs: lambda m: (
-    do_action(bot.edit_message_text)(text, m.chat.id, m.message_id, **kwargs)
-)
-
-edit_message_reply_markup = lambda m: (
-    bot.edit_message_reply_markup(m.chat.id, m.message_id, reply_markup=None)
-)
-
-reply_to = lambda t, **kwargs: lambda m: do_action(bot.reply_to)(m, t, **kwargs)
-
-reply_with_user_links = lambda text, mode="Markdown": reply_to(
-    text,
-    parse_mode=mode,
-    disable_notification=True,
-    link_preview_options=LinkPreviewOptions(is_disabled=True),
-)
+def edit_message_text(text: str, **kwargs) -> Callable[[Message], None]:
+    return lambda message: (
+        do_action(bot.edit_message_text)(
+            text, message.chat.id, message.message_id, **kwargs
+        )
+    )
 
 
-# NOTE probably should leave only one of makrdown senders
+def edit_message_reply_markup(message: Message) -> Callable[[Message], None]:
+    return bot.edit_message_reply_markup(
+        message.chat.id, message.message_id, reply_markup=None
+    )
+
+
+def reply_to(text: str, **kwargs) -> Callable[[Message], None]:
+    return lambda message: do_action(bot.reply_to)(message, text, **kwargs)
+
+
+def reply_with_user_links(text: str, mode="Markdown") -> Callable[[Message], None]:
+    return reply_to(
+        text,
+        parse_mode=mode,
+        disable_notification=True,
+        link_preview_options=LinkPreviewOptions(is_disabled=True),
+    )
+
+
+# NOTE probably should leave only one of markdown senders
 def escape_markdown_v2(text) -> str:
     """Escape special characters for MarkdownV2."""
     if text is None:
@@ -79,7 +100,7 @@ def escape_markdown_v2(text) -> str:
     return text
 
 
-def to_link_user(user):
+def to_link_user(user: User) -> str:
     if user is None:
         return phrases("unknown_user")
     if not (user.username is None):
@@ -87,7 +108,7 @@ def to_link_user(user):
     return f"{user.first_name}"
 
 
-def to_link_user_v2(user):
+def to_link_user_v2(user: User) -> str:
     """MarkdownV2 compatible user link"""
     if user is None:
         return escape_markdown_v2(phrases("unknown_user"))
@@ -102,11 +123,11 @@ def to_link_user_v2(user):
     return first_name_escaped
 
 
-def daily_hash(user_id):
+def daily_hash(salt: int) -> int:
     """
     https://gist.github.com/badboy/6267743
     """
-    key = user_id + datetime.date.today().toordinal()
+    key = salt + datetime.date.today().toordinal()
     key = (key ^ 61) ^ (key >> 16)
     key = key + (key << 3)
     key = key ^ (key >> 4)
@@ -115,13 +136,15 @@ def daily_hash(user_id):
     return key
 
 
-def get_user_name(chat_id, user_id):
+def get_user_name(chat_id: int, user_id: int) -> Optional[str]:
     member = get_chat_member(chat_id, user_id)
     user = member.user if member is not None else None
     return to_link_user(user)
 
 
-def reply_top(fetch, chat_id, header):
+def reply_top(
+    fetch: Callable[[], Iterable[tuple[int, int]]], chat_id: int, header: str
+) -> Callable[[Message], None]:
     top_message = "\n".join(
         f"{position + 1}. {get_user_name(chat_id, user_id)} — {count}"
         for position, (user_id, count) in enumerate(fetch())
@@ -129,31 +152,33 @@ def reply_top(fetch, chat_id, header):
     return reply_with_user_links(f"{header}\n{top_message}") or (lambda: None)
 
 
-get_chat_member = lambda chat_id, user_id: (
-    do_action(bot.get_chat_member)(chat_id, user_id)
-)
+def get_chat_member(chat_id, user_id) -> ChatMember:
+    return do_action(bot.get_chat_member)(chat_id, user_id)
 
-answer_callback_query = lambda t: lambda c: (
-    do_action(bot.answer_callback_query)(c.id, text=t)
-)
 
-get_chat_administrators = lambda chat_id: (
-    do_action(bot.get_chat_administrators)(chat_id)
-)
+def answer_callback_query(text: str) -> Callable[[CallbackQuery], None]:
+    return lambda call: (do_action(bot.answer_callback_query)(call.id, text=text))
 
-set_chat_administrator_custom_title = lambda chat_id, user_id, title: (
-    do_action(bot.set_chat_administrator_custom_title)(chat_id, user_id, title)
-)
 
-promote_chat_member = lambda chat_id, user_id, **kwargs: (
-    do_action(bot.promote_chat_member)(chat_id, user_id, **kwargs)
-)
+def get_chat_administrators(chat_id: int) -> list[ChatMember]:
+    return do_action(bot.get_chat_administrators)(chat_id)
 
-send_dice = lambda m: (
-    do_action(bot.send_dice)(m.chat.id, reply_to_message_id=m.message_id, emoji="🎲")
-)
 
-dices = {
+def set_chat_administrator_custom_title(chat_id: int, user_id: int, title: str) -> None:
+    return do_action(bot.set_chat_administrator_custom_title)(chat_id, user_id, title)
+
+
+def promote_chat_member(chat_id: int, user_id: int, **kwargs) -> None:
+    return do_action(bot.promote_chat_member)(chat_id, user_id, **kwargs)
+
+
+def send_dice(message: Message) -> Message:
+    return do_action(bot.send_dice)(
+        message.chat.id, reply_to_message_id=message.message_id, emoji="🎲"
+    )
+
+
+DICES = {
     "⚽": {"weight": 25, "win_values": (3, 4, 5)},
     "🏀": {"weight": 25, "win_values": (4, 5)},
     "🎯": {"weight": 54, "win_values": (6,)},
@@ -161,31 +186,40 @@ dices = {
     "🎰": {"weight": 112, "win_values": (1, 22, 43, 64)},
 }
 
-dice_keys = list(dices.keys())
-dice_weights = [dices[item]["weight"] for item in dice_keys]
+_dice_keys = list(DICES.keys())
+_dice_weights = [DICES[item]["weight"] for item in _dice_keys]
 
-send_random_dice = lambda m: (
-    do_action(bot.send_dice)(
-        m.chat.id,
-        reply_to_message_id=m.message_id,
-        emoji=random.choices(dice_keys, weights=dice_weights)[0],
+
+def send_random_dice(message: Message) -> Message:
+    return do_action(bot.send_dice)(
+        message.chat.id,
+        reply_to_message_id=message.message_id,
+        emoji=random.choices(_dice_keys, weights=_dice_weights)[0],
     )
-)
 
-send_sticker = lambda file_id: lambda m: (
-    do_action(bot.send_sticker)(m.chat.id, file_id, reply_to_message_id=m.message_id)
-)
 
-answer_inline_query = lambda cmds: lambda query: (
-    do_action(bot.answer_inline_query)(query.id, cmds)
-)
+def send_sticker(file_id: int) -> Callable[[Message], Message]:
+    return lambda message: do_action(bot.send_sticker)(
+        message.chat.id, file_id, reply_to_message_id=message.id
+    )
 
-get_file = lambda file_id: (do_action(bot.get_file)(file_id))
 
-download_file = lambda file_path: (do_action(bot.download_file)(file_path))
+def answer_inline_query(commands: list) -> Callable[[InlineQuery], None]:
+    return lambda query: do_action(bot.answer_inline_query)(query.id, commands)
 
-send_photo_with_user_links = (
-    lambda photo, caption, parse_mode="Markdown": lambda message: (
+
+def get_file(file_id: int) -> File:
+    return do_action(bot.get_file)(file_id)
+
+
+def download_file(file_path: str) -> bytes:
+    return do_action(bot.download_file)(file_path)
+
+
+def send_photo_with_user_links(
+    photo: str, caption: Optional[str], parse_mode: str = "Markdown"
+) -> Callable[[Message], Message]:
+    return lambda message: (
         do_action(bot.send_photo)(
             message.chat.id,
             reply_to_message_id=message.message_id,
@@ -195,15 +229,14 @@ send_photo_with_user_links = (
             disable_notification=True,
         )
     )
-)
 
 
-def get_user_profile_photo_file_info(user_id):
+def get_user_profile_photo_file_info(user_id: int) -> Optional[File]:
     photo = do_action(bot.get_user_profile_photos)(user_id, limit=1)
     return get_file(photo.photos[0][-1].file_id) if photo.photos else None
 
 
-def download_profile_photo(user_id):
+def download_profile_photo(user_id: int) -> Optional[bytes]:
     file_info = get_user_profile_photo_file_info(user_id)
     return download_file(file_info.file_path) if file_info else None
 
@@ -211,7 +244,7 @@ def download_profile_photo(user_id):
 get_me = do_action(bot.get_me)
 
 
-def phrases(k, *args):
+def phrases(k: str, *args) -> str:
     if config.language not in locale:
         config.language = "ru"
     if k in locale[config.language]:

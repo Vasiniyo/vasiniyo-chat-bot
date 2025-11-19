@@ -4,8 +4,6 @@ import os
 from random import random
 import sys
 
-from telebot.types import Message, Sticker
-
 from captcha_manager import (
     CAPTCHA_USERS,
     handle_captcha_button_press,
@@ -18,7 +16,12 @@ from commands.drink_or_not import handle_drink_or_not
 from commands.help import handle_help, handle_inline_help, handle_unknown
 from commands.like import handle_like, handle_top_likes
 from commands.play_event import handle_play, handle_top_winners, handle_winner
-from commands.roll_custom_title import handle_title_change_attempt, prepare_game, start
+from commands.roll_custom_title import (
+    handle_title_change_attempt,
+    prepare_game,
+    start,
+    validate_data,
+)
 from commands.stickers import handle_stickers
 from commands.text import (
     handle_long,
@@ -30,7 +33,6 @@ from config import config
 import safely_bot_utils as bot
 
 from .fuzzy_match.fuzzy_match import choice_one_match
-from .roll_custom_title import validate_data
 
 head = lambda l: l[0] if l else None
 at = lambda l: lambda n: l[n] if n < len(l) else None

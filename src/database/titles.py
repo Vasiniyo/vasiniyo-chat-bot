@@ -1,4 +1,6 @@
-from database.utils import commit_query, fetch_number, is_column_exist
+import sqlite3
+
+from database.utils import commit_query, database_name, fetch_number, is_column_exist
 
 
 def is_day_passed(chat_id, user_id):
@@ -36,6 +38,17 @@ def commit_update_title(chat_id, user_id, user_title):
     )
 
 
+def commit_reset_user(chat_id, user_id):
+    commit_query(
+        """
+        delete from titles
+        where chat_id = ?
+        and user_id = ?
+        """,
+        (chat_id, user_id),
+    )
+
+
 def get_user_title(chat_id, user_id):
     return fetch_number(
         """
@@ -46,6 +59,18 @@ def get_user_title(chat_id, user_id):
         """,
         (chat_id, user_id),
     )
+
+
+def get_user_titles(chat_id):
+    with sqlite3.connect(database_name) as connection:
+        return connection.execute(
+            """
+            select user_id, user_title
+            from titles
+            where chat_id = ?
+            """,
+            (chat_id,),
+        ).fetchall()
 
 
 def is_user_has_title(chat_id, user_id):

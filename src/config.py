@@ -1,5 +1,4 @@
 import bisect
-from dataclasses import dataclass
 import logging
 import os
 from pathlib import Path
@@ -8,82 +7,7 @@ import sys
 import telebot
 import toml
 
-
-@dataclass
-class Config:
-    @dataclass
-    class Drinks:
-        answer: list[str | None]
-        emoji: list[str | None]
-
-    @dataclass
-    class Espers:
-        answer: list[str | None]
-        emoji: list[str | None]
-
-    @dataclass
-    class CustomTitles:
-        adjectives: list[str]
-        nouns: list[str]
-        weights: list[int]
-
-    @dataclass
-    class LongMessage:
-        messages: list[str]
-        max_len: int
-
-    @dataclass
-    class TriggerReplies:
-        sticker_to_sticker: dict[str, list[str]]
-        text_to_sticker: dict[str, list[str]]
-        text_to_text_to_target: dict[str, list[str]]
-        text_to_text: dict[str, list[str]]
-
-    @dataclass
-    class Captcha:
-        @dataclass
-        class Gen:
-            length: int
-            banned_symbols: str
-            max_rotation: int
-            margins_width: int
-            margins_color: str
-            font_path: str
-
-        @dataclass
-        class Validate:
-            timer: int
-            update_freq: int
-            attempts: int
-            bar_length: int
-
-        gen: Gen
-        validate: Validate
-        content_types: list[str]
-        greeting_message: str
-
-    @dataclass
-    class Event:
-        @dataclass
-        class Picture:
-            background: Path
-            avatar_size: int
-            avatar_position_x: int
-            avatar_position_y: int
-
-        default_winner_avatar: Path
-        winner_pictures: list[Picture]
-
-    triggerReplies: TriggerReplies
-    long_message: LongMessage
-    custom_titles: CustomTitles
-    drinks: list[Drinks]
-    espers: list[Espers]
-    captcha_properties: Captcha
-    event: Event
-    language: str
-    allowed_chat_ids: list[str]
-    mods: list[str]
+from custom_typing.typing import Config
 
 
 def expand_templates(template_dict: dict) -> dict:
@@ -119,13 +43,6 @@ TEST_MODE = "--test" in sys.argv or os.environ.get("TEST_MODE", "").lower() == "
 if TEST_MODE and "test_new_category" not in _toml_config["mods"]:
     _toml_config["mods"].append("test_new_category")
     logging.info("Test mode enabled - adding test modules")
-captcha_properties = {
-    "gen": _toml_config["captcha_properties"]["gen"],
-    "validate": _toml_config["captcha_properties"]["validate"],
-    # types of content that the captcha will intercept as a check on the user's answer
-    "content_types": _toml_config["captcha_properties"].get("content_types", ["text"]),
-}
-captcha_content_types = captcha_properties["content_types"]
 
 
 def get_sticker_set(pack):
