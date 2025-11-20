@@ -198,8 +198,6 @@ def _set_title(callback, chat_id: int, user_id: int, title: str):
 
 def _set_random_title(callback, chat_id: int, user_id: int):
     title = _random_title()
-    if user_id == 6652718625:
-        title = f"{title.split()[0]} манул"
     log(logging.INFO, "choice_random_title", LogDetails(details=title))
     return _set_specific_title(callback, chat_id, user_id, title)
 
