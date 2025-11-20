@@ -485,13 +485,13 @@ def _steal_user_title_button(
 
 def _back_steal_menu_button(page: int, button_owner_id: int) -> InlineKeyboardButton:
     return InlineKeyboardButton(
-        "◀️", callback_data=_create_steal_menu_payload(page - 1, button_owner_id)
+        "◀️", callback_data=_create_steal_menu_payload(page, button_owner_id)
     )
 
 
 def _forward_steal_menu_button(page: int, button_owner_id: int) -> InlineKeyboardButton:
     return InlineKeyboardButton(
-        "▶️", callback_data=_create_steal_menu_payload(page + 1, button_owner_id)
+        "▶️", callback_data=_create_steal_menu_payload(page, button_owner_id)
     )
 
 
