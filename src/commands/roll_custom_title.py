@@ -417,7 +417,13 @@ def _handle_steal(message: Message, actor: User, target_id: int) -> None:
     commit_reset_user(chat_id, target_id)
     problems = "".join([f"\n\n{error}" if error else "" for error in [error1, error2]])
     bot.edit_message_text_later(
-        bot.phrases(bot.to_link_user(actor), target_with_link, target_title, problems),
+        bot.phrases(
+            "roll_steal_success",
+            bot.to_link_user(actor),
+            target_with_link,
+            target_title,
+            problems,
+        ),
         parse_mode="Markdown",
         link_preview_options=LinkPreviewOptions(is_disabled=True),
     )(message)
@@ -485,13 +491,13 @@ def _steal_user_title_button(
 
 def _back_steal_menu_button(page: int, button_owner_id: int) -> InlineKeyboardButton:
     return InlineKeyboardButton(
-        "◀️", callback_data=_create_steal_menu_payload(page - 1, button_owner_id)
+        "◀️", callback_data=_create_steal_menu_payload(page, button_owner_id)
     )
 
 
 def _forward_steal_menu_button(page: int, button_owner_id: int) -> InlineKeyboardButton:
     return InlineKeyboardButton(
-        "▶️", callback_data=_create_steal_menu_payload(page + 1, button_owner_id)
+        "▶️", callback_data=_create_steal_menu_payload(page, button_owner_id)
     )
 
 
