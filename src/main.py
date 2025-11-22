@@ -1,18 +1,31 @@
 import logging
 import os
-import pprint
+import signal
 import sys
+import time
 
+from requests.exceptions import RequestException
 from telebot.types import BotCommand
+from urllib3.exceptions import HTTPError
 
 from commands.dispatcher import COMMANDS, handlers, inline_handlers, query_handlers
 from config import bot
+from custom_typing.typing import LogDetails
 from event_queue import start_ticking_if_needed
+from logger import json_logger
 
 logger = logging.getLogger(__name__)
 
 # Check for test mode
 TEST_MODE = "--test" in sys.argv or os.environ.get("TEST_MODE", "").lower() == "true"
+
+
+def sigint_handler(_, __):
+    json_logger.log(logging.INFO, "stop_polling")
+    sys.exit(0)
+
+
+signal.signal(signal.SIGINT, sigint_handler)
 
 if __name__ == "__main__":
     mode_str = " in TEST MODE" if TEST_MODE else ""
@@ -24,7 +37,6 @@ if __name__ == "__main__":
         bot.message_handler(**args)(handler)
 
     for handler, args in inline_handlers.items():
-        logger.info(f"\n[MAIN]\n {handler}: {pprint.pprint(args)}")
         bot.inline_handler(*args)(handler)
 
     for handler, args in query_handlers.items():
@@ -35,6 +47,23 @@ if __name__ == "__main__":
 
     while True:
         try:
+            json_logger.log(logging.INFO, "start_polling")
             bot.polling()
+        except KeyboardInterrupt:
+            json_logger.info("Bot stopped by user")
+            break
+        except (RequestException, HTTPError) as e:
+            sleep_time = 5
+            json_logger.log(
+                logging.ERROR,
+                "network_error",
+                extra={
+                    "details": LogDetails(
+                        details=f"{type(e).__name__}: retrying in {sleep_time}s"
+                    )
+                },
+            )
+            time.sleep(sleep_time)
         except Exception as e:
-            logger.exception(e)
+            json_logger.exception(e)
+            time.sleep(5)

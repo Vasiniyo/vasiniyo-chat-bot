@@ -21,7 +21,8 @@ fi
 echo "Stopping old $CONTAINER_NAME..." && docker stop "$CONTAINER_NAME" 2>/dev/null
 echo "Removing old $CONTAINER_NAME..." && docker rm "$CONTAINER_NAME" 2>/dev/null
 
-docker run --rm\
+docker run -d\
+           --rm\
            --name "$CONTAINER_NAME"\
            $(test -n "$BOT_API_TOKEN" && echo "-e BOT_API_TOKEN=$BOT_API_TOKEN")\
            $(test -n "$ACCESS_ID_GROUP" && echo "-e ACCESS_ID_GROUP=$ACCESS_ID_GROUP")\
@@ -29,3 +30,5 @@ docker run --rm\
            $(test -f "$SCRIPT_DIR/.env-local" && echo "--env-file $SCRIPT_DIR/.env-local")\
            -v "$VOLUME_PATH:/data"\
            "$CONTAINER_NAME:latest"
+
+docker logs -f "$CONTAINER_NAME"
