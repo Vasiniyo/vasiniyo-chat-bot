@@ -5,14 +5,23 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" || "$OS" == "Windows_NT" ]]; then
-    VOLUME_PATH="$(pwd -W)/data"
-else
-    VOLUME_PATH="$(pwd)/data"
-fi
-
 SCRIPT_DIR=`dirname $(realpath -m "$0")`
 CONTAINER_NAME="vasiniyo-chat-bot"
+
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" || "$OS" == "Windows_NT" ]]; then
+    VOLUME_PATH="$(pwd -W)/data"
+    LOG_PATH="$(pwd -W)/logs"
+    "MM/dd/yyyy HH:mm:ss"
+    LOG_FILE="$LOG_PATH/$CONTAINER_NAME-"$(date -Format "yyyy-MM-dd-HH-mm-ss")".log"
+else
+    VOLUME_PATH="$(pwd)/data"
+    LOG_PATH="$(pwd)/logs"
+    LOG_FILE="$LOG_PATH/$CONTAINER_NAME-"$(date "+%Y-%m-%d-%H-%M-%S")".log"
+fi
+
+mkdir -p "$LOG_PATH"
+touch "$LOG_FILE"
+
 echo "Building $CONTAINER_NAME..." && docker build -t "$CONTAINER_NAME" "$SCRIPT_DIR"
 if [ $? -ne 0 ]; then
     echo "Failed to build container $CONTAINER_NAME"
@@ -29,6 +38,7 @@ docker run -d\
            $(test -f "$SCRIPT_DIR/.env" && echo "--env-file $SCRIPT_DIR/.env")\
            $(test -f "$SCRIPT_DIR/.env-local" && echo "--env-file $SCRIPT_DIR/.env-local")\
            -v "$VOLUME_PATH:/data"\
+           -v "$LOG_FILE:/logs/logs.log"\
            "$CONTAINER_NAME:latest"
 
 docker logs -f "$CONTAINER_NAME"

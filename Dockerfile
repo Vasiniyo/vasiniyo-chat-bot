@@ -10,8 +10,9 @@ COPY assets/GoMonoNerdFontMono-Regular.ttf\
 
 RUN --mount=type=cache,target=/root/.cache/pip\
     pip install -r requirements.txt
+RUN mkdir -p /logs
 
 VOLUME ["/data"]
 
 # NOTE: add `--test` flag to run in debug mode
-CMD ["python", "src/main.py"]
+CMD ["sh", "-c", "python src/main.py 2>&1 | tee /logs/logs.log"]
