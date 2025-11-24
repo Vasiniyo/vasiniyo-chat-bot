@@ -15,7 +15,12 @@ from commands.anime import handle_anime
 from commands.drink_or_not import handle_drink_or_not
 from commands.help import handle_help, handle_inline_help, handle_unknown
 from commands.like import handle_like, handle_top_likes
-from commands.play_event import handle_play, handle_top_winners, handle_winner
+from commands.play_event import (
+    handle_play,
+    handle_players,
+    handle_top_winners,
+    handle_winner,
+)
 from commands.roll_custom_title import (
     handle_title_change_attempt,
     prepare_game,
@@ -91,6 +96,7 @@ COMMANDS = {
     },
     "play": {
         "play": (handle_play, "Узнать своё значение в сегодняшней категории"),
+        "players": (handle_players, "Показать всех игроков"),
         "winner": (handle_winner, "Показать победителя дня"),
         "top_winners": (handle_top_winners, "Топ победителей за всё время"),
     },
