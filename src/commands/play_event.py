@@ -278,3 +278,23 @@ def handle_top_winners(message):
         message.chat.id,
         "🏆 Топ победителей за всё время:",
     )(message)
+
+
+def handle_players(message):
+    """Show all eligible players"""
+    chat_id = message.chat.id
+    players = get_players(chat_id)
+
+    if len(players) == 0:
+        bot.reply_to("❌ В чате нет подходящих участников (нужны админы)")(message)
+        return
+
+    header = f"👥 Список игроков [{len(players)}]:"
+    header = bot.escape_markdown_v2(f"👥 Список игроков [{len(players)}]:")
+
+    players_list = "\n".join(
+        f"{bot.escape_markdown_v2(f'{position + 1}.')} {bot.to_link_user_v2(player)}"
+        for position, player in enumerate(players)
+    )
+
+    bot.reply_with_user_links(f"{header}\n{players_list}", mode="MarkdownV2")(message)
