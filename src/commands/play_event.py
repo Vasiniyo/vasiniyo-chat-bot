@@ -14,7 +14,7 @@ from .play.play import PlayableCategory
 from .play.play_utils import get_current_playable_category
 
 # Event ID for play categories
-PLAY_EVENT_ID = 1
+PLAY_EVENT_ID = 0
 logger = logging.getLogger(__name__)
 
 
