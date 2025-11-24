@@ -407,20 +407,20 @@ def _handle_steal(message: Message, actor: User, target_id: int) -> None:
         return
 
     target_title = get_user_title(chat_id, target_id)
-    target_with_link = None
+    target_user = None
     for admin in bot.get_chat_administrators(chat_id):
         if admin.user.id == target_id:
-            target_with_link = admin.user
+            target_user = admin.user
             break
-    error1 = _set_title(lambda _, __: None, chat_id, target_id, "украдено")
-    error2 = _set_specific_title(lambda _, __: None, chat_id, user_id, target_title)
+    error1 = _set_title(lambda _, e: e, chat_id, target_id, "украдено")
+    error2 = _set_specific_title(lambda _, e: e, chat_id, user_id, target_title)
     commit_reset_user(chat_id, target_id)
     problems = "".join([f"\n\n{error}" if error else "" for error in [error1, error2]])
     bot.edit_message_text_later(
         bot.phrases(
             "roll_steal_success",
             bot.to_link_user(actor),
-            target_with_link,
+            bot.to_link_user(target_user),
             target_title,
             problems,
         ),
