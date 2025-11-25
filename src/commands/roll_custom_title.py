@@ -1,6 +1,7 @@
 import json
 import logging
 import random
+import time
 from typing import Optional
 
 from telebot.types import (
@@ -26,6 +27,8 @@ from database.titles import (
 from logger import get_json_logger
 import safely_bot_utils as bot
 
+_opened_steal_menu: dict[str, int] = {}
+
 
 def validate_data(call: CallbackQuery) -> bool:
     return (
@@ -45,6 +48,12 @@ def handle_title_change_attempt(call: CallbackQuery) -> None:
         bot.answer_callback_query("Извините, кнопка не работает...")(call)
 
     def handlers():
+        menu_key = f"{message.chat.id}|{message.message_id}"
+        match action_type:
+            case Action.OPEN_STEAL_MENU:
+                _opened_steal_menu[menu_key] = int(time.time())
+            case _:
+                _opened_steal_menu.pop(menu_key, None)
         match action_type:
             case Action.OPEN_RENAME_MENU:
                 _show_rename_menu(message, user_id)
@@ -52,6 +61,14 @@ def handle_title_change_attempt(call: CallbackQuery) -> None:
                 page = _to_int(payload.get(Field.PAGE.value, 0))
                 if page is not None and page >= 0:
                     _show_steal_menu(message, user_id, page)
+                    bot.edit_message_text_later(
+                        text=bot.phrases("roll_propose"),
+                        delay=60,
+                        should_edit=lambda: (
+                            int(time.time()) - _opened_steal_menu.get(menu_key) >= 60
+                        ),
+                        reply_markup=_create_rename_menu_markups(user_id),
+                    )(message)
                 else:
                     buttons_not_works("page must be non-negative integer")
             case Action.STEAL_TITLE:
@@ -491,13 +508,13 @@ def _steal_user_title_button(
 
 def _back_steal_menu_button(page: int, button_owner_id: int) -> InlineKeyboardButton:
     return InlineKeyboardButton(
-        "◀️", callback_data=_create_steal_menu_payload(page, button_owner_id)
+        "⬅️", callback_data=_create_steal_menu_payload(page, button_owner_id)
     )
 
 
 def _forward_steal_menu_button(page: int, button_owner_id: int) -> InlineKeyboardButton:
     return InlineKeyboardButton(
-        "▶️", callback_data=_create_steal_menu_payload(page, button_owner_id)
+        "➡️", callback_data=_create_steal_menu_payload(page, button_owner_id)
     )
 
 

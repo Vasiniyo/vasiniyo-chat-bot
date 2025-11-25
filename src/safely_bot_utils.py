@@ -49,13 +49,17 @@ def delete_message_later(message: Message, delay=10) -> None:
 
 
 @logger
-def edit_message_text_later(text: str, **kwargs) -> Callable[[Message], Future]:
-    async def edit_message(message: Message, delay: int):
+def edit_message_text_later(
+    text: str, delay: int = 5, should_edit: Callable[[], bool] = lambda: True, **kwargs
+) -> Callable[[Message], Future]:
+    async def edit_message(message: Message):
         await asyncio.sleep(delay)
-        return edit_message_text(text, **kwargs)(message)
+        if should_edit():
+            return edit_message_text(text, **kwargs)(message)
+        return None
 
-    return lambda message, delay=5: (
-        asyncio.run_coroutine_threadsafe(edit_message(message, delay), loop)
+    return lambda message: (
+        asyncio.run_coroutine_threadsafe(edit_message(message), loop)
     )
 
 
