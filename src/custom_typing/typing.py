@@ -35,6 +35,7 @@ class Config:
         text_to_sticker: dict[str, list[str]]
         text_to_text_to_target: dict[str, list[str]]
         text_to_text: dict[str, list[str]]
+        text_to_text_no_fuzzy: dict[str, list[str]]
 
     @dataclass
     class Captcha:
