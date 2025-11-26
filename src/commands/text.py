@@ -21,6 +21,20 @@ def handle_text_to_sticker(answers):
     return lambda m: bot.send_sticker(__get_response(m, answers)[1])(m)
 
 
+def handle_text_to_text_no_fuzzy(answers):
+    def inner(message):
+        replies = [
+            value
+            for key, values in answers.items()
+            if key in message.text
+            for value in values
+        ]
+        reply = random.choice(replies)
+        bot.reply_to(reply)(message)
+
+    return inner
+
+
 def handle_text_to_text_to_target(answers):
     def inner(message):
         reply = __get_reply(message, answers)

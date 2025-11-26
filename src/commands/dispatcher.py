@@ -32,6 +32,7 @@ from commands.text import (
     handle_long,
     handle_text_to_sticker,
     handle_text_to_text,
+    handle_text_to_text_no_fuzzy,
     handle_text_to_text_to_target,
 )
 from config import config
@@ -57,9 +58,10 @@ unknown_cmd = (
 
 chat_ok = lambda p: lambda m: p(m) and in_allowed_chat(m)
 message_ok = lambda t: lambda m: head(choice_one_match(m.text, t.keys()))
-message_ok_and_equal = lambda t: lambda m: m.text.lower() in map(
-    lambda text: text.lower(), config.triggerReplies.text_to_text_to_target
+message_ok_and_equal = lambda t: lambda m: (
+    m.text.lower() in map(lambda text: text.lower(), t)
 )
+message_ok_and_contains_equal = lambda t: lambda m: any(key in m.text for key in t)
 sticker_ok = lambda t: lambda m: m.sticker.file_id in t.keys()
 cmd_ok = lambda m: is_cmd_for_bot(split_cmd(m)) and not is_captcha_user(m)
 cmd_no_ok = lambda m: unknown_cmd(split_cmd(m))
@@ -151,16 +153,23 @@ handlers = filter_modules(
             handle_long(config.long_message.messages): handler(is_long_message)
         },
         "reply": {
+            handle_text_to_text_no_fuzzy(
+                config.triggerReplies.text_to_text_no_fuzzy
+            ): handler(
+                message_ok_and_contains_equal(
+                    config.triggerReplies.text_to_text_no_fuzzy
+                )
+            ),
             handle_text_to_text_to_target(
                 config.triggerReplies.text_to_text_to_target
             ): handler(
                 message_ok_and_equal(config.triggerReplies.text_to_text_to_target)
             ),
-            handle_text_to_sticker(config.triggerReplies.text_to_sticker): handler(
-                message_ok(config.triggerReplies.text_to_sticker)
-            ),
             handle_text_to_text(config.triggerReplies.text_to_text): handler(
                 message_ok(config.triggerReplies.text_to_text)
+            ),
+            handle_text_to_sticker(config.triggerReplies.text_to_sticker): handler(
+                message_ok(config.triggerReplies.text_to_sticker)
             ),
             handle_stickers(config.triggerReplies.sticker_to_sticker): handler(
                 sticker_ok(config.triggerReplies.sticker_to_sticker),

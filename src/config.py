@@ -97,6 +97,9 @@ config = Config(
             _toml_config.get("text_to_text_to_target", {})
         ),
         text_to_text=expand_templates(_toml_config.get("text_to_text", {})),
+        text_to_text_no_fuzzy=expand_templates(
+            _toml_config.get("text_to_text_no_fuzzy", {})
+        ),
     ),
     long_message=Config.LongMessage(
         messages=_toml_config.get("long_message", {}).get("long_message", []),
