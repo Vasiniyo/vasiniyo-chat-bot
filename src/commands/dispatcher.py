@@ -61,7 +61,9 @@ message_ok = lambda t: lambda m: head(choice_one_match(m.text, t.keys()))
 message_ok_and_equal = lambda t: lambda m: (
     m.text.lower() in map(lambda text: text.lower(), t)
 )
-message_ok_and_contains_equal = lambda t: lambda m: any(key in m.text for key in t)
+message_ok_and_contains_equal = lambda t: lambda m: (
+    any(key in m.text for key in t) and random() < 0.1
+)
 sticker_ok = lambda t: lambda m: m.sticker.file_id in t.keys()
 cmd_ok = lambda m: is_cmd_for_bot(split_cmd(m)) and not is_captcha_user(m)
 cmd_no_ok = lambda m: unknown_cmd(split_cmd(m))
