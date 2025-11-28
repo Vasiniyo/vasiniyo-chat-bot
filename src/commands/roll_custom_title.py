@@ -384,12 +384,12 @@ def roll_dice(
         dice_message = bot.send_random_dice(message)
         dice_value = dice_message.dice.value
         win_values = bot.DICES[dice_message.dice.emoji]["win_values"]
-        log_roll("handle_d6")
+        log_roll("handle_random_d6")
     else:
         dice_message = bot.send_dice(message)
         dice_value = dice_message.dice.value
         win_values = [dice_value]
-        log_roll("handle_random_d6")
+        log_roll("handle_d6")
 
     return dice_value, (expected_value or dice_value) in win_values
 
