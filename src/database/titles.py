@@ -38,6 +38,17 @@ def commit_update_title(chat_id, user_id, user_title):
     )
 
 
+def commit_update_title_with_old_time(chat_id, user_id, user_title):
+    commit_query(
+        """
+        insert into titles (chat_id, user_id, user_title, last_changing) values (?, ?, ?, 0)
+        on conflict (chat_id, user_id) do update set 
+        user_title = excluded.user_title;
+        """,
+        (chat_id, user_id, user_title),
+    )
+
+
 def commit_reset_user(chat_id, user_id):
     commit_query(
         """
