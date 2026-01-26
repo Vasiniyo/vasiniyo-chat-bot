@@ -90,6 +90,8 @@ class Action(Enum):
     OPEN_RENAME_MENU = "2"
     OPEN_STEAL_MENU = "3"
     STEAL_TITLE = "4"
+    OPEN_TITLES_BAG = "5"
+    SET_TITLE_BAG = "6"
 
 
 class Field(Enum):
@@ -98,6 +100,7 @@ class Field(Enum):
     DICE_VALUE = "2"
     PAGE = "3"
     TARGET_USER_ID = "4"
+    TITLE_BAG_ID = "5"
 
 
 class RollType(Enum):

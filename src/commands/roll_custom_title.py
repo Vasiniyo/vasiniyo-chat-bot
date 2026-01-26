@@ -20,14 +20,21 @@ from database.titles import (
     commit_dice_roll,
     commit_reset_user,
     commit_update_title,
+    commit_update_title_with_old_time,
     get_user_title,
     get_user_titles,
     is_day_passed,
 )
+from database.titles_bag import (
+    commit_remove_title_in_bag,
+    commit_save_title,
+    get_title_in_bag,
+    get_user_titles_bag,
+)
 from logger import get_json_logger
 import safely_bot_utils as bot
 
-_opened_steal_menu: dict[str, int] = {}
+_opened_swap_menu: dict[str, int] = {}
 
 
 def validate_data(call: CallbackQuery) -> bool:
@@ -49,11 +56,24 @@ def handle_title_change_attempt(call: CallbackQuery) -> None:
 
     def handlers():
         menu_key = f"{message.chat.id}|{message.message_id}"
+        day_passed = is_day_passed(message.chat.id, user_id)
+        back_to_rename_menu_later = bot.edit_message_text_later(
+            text=bot.phrases("roll_propose"),
+            delay=60,
+            should_edit=lambda: (
+                int(time.time()) - _opened_swap_menu.get(menu_key) >= 60
+            ),
+            reply_markup=(
+                _create_rename_menu_markups_only_bag(user_id)
+                if not day_passed
+                else _create_rename_menu_markups(user_id)
+            ),
+        )
         match action_type:
-            case Action.OPEN_STEAL_MENU:
-                _opened_steal_menu[menu_key] = int(time.time())
+            case Action.OPEN_STEAL_MENU | Action.OPEN_TITLES_BAG:
+                _opened_swap_menu[menu_key] = int(time.time())
             case _:
-                _opened_steal_menu.pop(menu_key, None)
+                _opened_swap_menu.pop(menu_key, None)
         match action_type:
             case Action.OPEN_RENAME_MENU:
                 _show_rename_menu(message, user_id)
@@ -61,14 +81,7 @@ def handle_title_change_attempt(call: CallbackQuery) -> None:
                 page = _to_int(payload.get(Field.PAGE.value, 0))
                 if page is not None and page >= 0:
                     _show_steal_menu(message, user_id, page)
-                    bot.edit_message_text_later(
-                        text=bot.phrases("roll_propose"),
-                        delay=60,
-                        should_edit=lambda: (
-                            int(time.time()) - _opened_steal_menu.get(menu_key) >= 60
-                        ),
-                        reply_markup=_create_rename_menu_markups(user_id),
-                    )(message)
+                    back_to_rename_menu_later(message)
                 else:
                     buttons_not_works("page must be non-negative integer")
             case Action.STEAL_TITLE:
@@ -85,6 +98,16 @@ def handle_title_change_attempt(call: CallbackQuery) -> None:
                     _handle_d6(message, dice_value, user_id)
                 else:
                     buttons_not_works("Dice value must be between 0 and 6")
+            case Action.OPEN_TITLES_BAG:
+                page = _to_int(payload.get(Field.PAGE.value, 0))
+                if page is not None and page >= 0:
+                    _handle_show_titles_bag(message, user_id, page)
+                    back_to_rename_menu_later(message)
+                else:
+                    buttons_not_works("page must be non-negative integer")
+            case Action.SET_TITLE_BAG:
+                title_bag_id = payload.get(Field.TITLE_BAG_ID.value)
+                _handle_swap_title(message, user_id, title_bag_id)
 
     actor = call.from_user
     message = call.message
@@ -103,7 +126,10 @@ def handle_title_change_attempt(call: CallbackQuery) -> None:
         bot.answer_callback_query(bot.phrases("roll_not_yours"))(call)
         return
     log(logging.INFO, "pressed_button", LogDetails(call=call))
-    _handle_roll_logic(handlers, actor.id, message)
+    if action_type in (Action.OPEN_TITLES_BAG, Action.SET_TITLE_BAG):
+        _handle_roll_logic(handlers, actor.id, message, call_ready_on_wait=True)
+    else:
+        _handle_roll_logic(handlers, actor.id, message)
 
 
 # when user call /reg
@@ -126,6 +152,10 @@ def prepare_game(message: Message) -> None:
         message,
     )
 
+
+_wrap_swap_title = lambda callback: lambda title, error: callback(
+    f"Изменила лычку на {title}" + (f"\n{error}" if error else "")
+)
 
 _wrap_new_title = lambda callback: lambda title, error: callback(
     bot.phrases("roll_guessed", title) + (f"\n{error}" if error else "")
@@ -193,7 +223,10 @@ def _handle_roll_logic(
             if call_ready_on_wait:
                 roll_ready_callback()
             else:
-                bot_response(bot.phrases("roll_cant_roll"))(message)
+                bot_response(
+                    bot.phrases("roll_cant_roll"),
+                    reply_markup=_create_rename_menu_markups_only_bag(user_id),
+                )(message)
         case RollType.ROLL_READY:
             roll_ready_callback()
 
@@ -223,11 +256,26 @@ def _set_old_title(callback, chat_id: int, user_id: int):
     return _set_title(callback, chat_id, user_id, get_user_title(chat_id, user_id))
 
 
-def _set_specific_title(callback, chat_id: int, user_id: int, title: str):
+def _set_specific_title(
+    callback, chat_id: int, user_id: int, title: str, with_old_time=False
+):
     log_details = LogDetails(chat_id=chat_id, user_id=user_id, details=title)
     log(logging.INFO, "update_title_in_db", log_details)
-    commit_update_title(chat_id, user_id, title)
+    if old_title := get_user_title(chat_id, user_id):
+        commit_save_title(chat_id, user_id, old_title)
+    if with_old_time:
+        commit_update_title_with_old_time(chat_id, user_id, title)
+    else:
+        commit_update_title(chat_id, user_id, title)
     return _set_title(callback, chat_id, user_id, title)
+
+
+def _handle_show_titles_bag(message: Message, user_id: int, page: int = 0) -> None:
+    log(logging.INFO, "show_titles_bag", LogDetails(user_id=user_id, message=message))
+    chat_id = message.chat.id
+    page_titles, has_more_pages = _get_titles_bag_page(chat_id, user_id, page)
+    markup = _create_bag_menu_markups(user_id, page, page_titles, has_more_pages)
+    bot.edit_message_text(bot.phrases("roll_titles_bag"), reply_markup=markup)(message)
 
 
 def _show_rename_menu(message: Message, user_id: int) -> None:
@@ -269,6 +317,17 @@ def _get_titles_page(
     return page_titles, has_more_pages
 
 
+def _get_titles_bag_page(
+    chat_id: int, user_id: int, page: int = 0, page_size: int = 9
+) -> tuple[list[int, str], bool]:
+    titles = get_user_titles_bag(chat_id, user_id)
+    start_page = page * page_size
+    end_page = start_page + page_size
+    page_titles = titles[start_page:end_page]
+    has_more_pages = end_page < (len(titles))
+    return page_titles, has_more_pages
+
+
 def _parse_callback_payload(call: CallbackQuery) -> dict:
     try:
         data = json.loads(call.data)
@@ -289,6 +348,26 @@ def _to_int(value: str | int) -> int | None:
 def _to_action_type(value: str) -> Action | None:
     return (
         Action._value2member_map_[value] if value in Action._value2member_map_ else None
+    )
+
+
+def _create_titles_bag_menu_payload(page: int, user_id: int) -> str:
+    return json.dumps(
+        {
+            Field.ACTION_TYPE.value: Action.OPEN_TITLES_BAG.value,
+            Field.USER_ID.value: user_id,
+            Field.PAGE.value: page,
+        }
+    )
+
+
+def _create_set_title_payload(title_bag_id: int, user_id: int) -> str:
+    return json.dumps(
+        {
+            Field.ACTION_TYPE.value: Action.SET_TITLE_BAG.value,
+            Field.USER_ID.value: user_id,
+            Field.TITLE_BAG_ID.value: title_bag_id,
+        }
     )
 
 
@@ -417,6 +496,7 @@ def _handle_random_d6(message: Message, user_id: int) -> None:
 def _handle_steal(message: Message, actor: User, target_id: int) -> None:
     chat_id = message.chat.id
     user_id = actor.id
+
     _, success = roll_dice(message, user_id)
     if not success:
         commit_dice_roll(chat_id, user_id)
@@ -429,9 +509,26 @@ def _handle_steal(message: Message, actor: User, target_id: int) -> None:
         if admin.user.id == target_id:
             target_user = admin.user
             break
-    error1 = _set_title(lambda _, e: e, chat_id, target_id, "украдено")
-    error2 = _set_specific_title(lambda _, e: e, chat_id, user_id, target_title)
+    if (target_user is None) or (target_title is None):
+        bot.edit_message_text_later(
+            "Поздравляю, ты выиграл! Но лычка куда-то пропала, извини..."
+        )(message)
+        return
+    bag = get_user_titles_bag(chat_id, target_id)
+    if len(bag) > 0:
+        title_bag_id, next_target_title = bag[0]
+    else:
+        title_bag_id, next_target_title = None, None
+    if title_bag_id is not None:
+        commit_remove_title_in_bag(title_bag_id)
     commit_reset_user(chat_id, target_id)
+    if next_target_title is None:
+        error1 = _set_title(lambda _, e: e, chat_id, target_id, "украдено")
+    else:
+        error1 = _set_specific_title(
+            lambda _, e: e, chat_id, target_id, next_target_title
+        )
+    error2 = _set_specific_title(lambda _, e: e, chat_id, user_id, target_title)
     problems = "".join([f"\n\n{error}" if error else "" for error in [error1, error2]])
     bot.edit_message_text_later(
         bot.phrases(
@@ -443,6 +540,22 @@ def _handle_steal(message: Message, actor: User, target_id: int) -> None:
         ),
         parse_mode="Markdown",
         link_preview_options=LinkPreviewOptions(is_disabled=True),
+    )(message)
+
+
+def _handle_swap_title(message: Message, user_id: int, title_bag_id: int):
+    log(logging.INFO, "show_swap_title", LogDetails(user_id=user_id, message=message))
+    chat_id = message.chat.id
+    title = get_title_in_bag(title_bag_id)
+    if title is None:
+        return bot.edit_message_text("У вас больше нет такой лычки в инвентаре")
+    commit_remove_title_in_bag(title_bag_id)
+    _set_specific_title(
+        _wrap_swap_title(bot.edit_message_text),
+        chat_id,
+        user_id,
+        title,
+        with_old_time=True,
     )(message)
 
 
@@ -459,7 +572,35 @@ def _create_rename_menu_markups(user_id: int) -> InlineKeyboardMarkup:
         .row(*number_buttons)
         .add(_random_d6_button(user_id))
         .add(_steal_button(user_id))
+        .add(_titles_bag_menu_button(user_id))
     )
+
+
+def _create_rename_menu_markups_only_bag(user_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup().add(_titles_bag_menu_button(user_id))
+
+
+def _create_bag_menu_markups(
+    user_id: int, page: int, page_titles: list, has_more_pages: bool
+) -> InlineKeyboardMarkup:
+    buttons = [
+        _get_in_bag_title_button(title_bag_id, title, user_id)
+        for title_bag_id, title in page_titles
+    ]
+    markup = InlineKeyboardMarkup()
+    for button in buttons:
+        markup.add(button)
+    back_button = _back_titles_bag_button(page - 1, user_id)
+    forward_button = _forward_titles_bag_button(page + 1, user_id)
+    if page > 0 and has_more_pages:
+        markup.add(back_button, forward_button)
+    else:
+        if page > 0:
+            markup.add(back_button)
+        if has_more_pages:
+            markup.add(forward_button)
+    markup.add(_rename_menu_button(user_id))
+    return markup
 
 
 def _create_steal_menu_markups(
@@ -485,6 +626,12 @@ def _create_steal_menu_markups(
     return markup
 
 
+def _titles_bag_menu_button(user_id: int) -> InlineKeyboardButton:
+    return InlineKeyboardButton(
+        "Инвентарь", callback_data=_create_titles_bag_menu_payload(0, user_id)
+    )
+
+
 def _random_d6_button(user_id: int) -> InlineKeyboardButton:
     return InlineKeyboardButton(
         "Мне повезёт", callback_data=_create_random_d6_payload(user_id)
@@ -503,6 +650,26 @@ def _steal_user_title_button(
     return InlineKeyboardButton(
         f"{title} | {user.username or user.first_name}",
         callback_data=_create_steal_title_payload(user.id, button_owner_id),
+    )
+
+
+def _get_in_bag_title_button(
+    title_bag_id: int, title: str, button_owner_id: int
+) -> InlineKeyboardButton:
+    return InlineKeyboardButton(
+        title, callback_data=_create_set_title_payload(title_bag_id, button_owner_id)
+    )
+
+
+def _back_titles_bag_button(page: int, button_owner_id: int) -> InlineKeyboardButton:
+    return InlineKeyboardButton(
+        "⬅️", callback_data=_create_titles_bag_menu_payload(page, button_owner_id)
+    )
+
+
+def _forward_titles_bag_button(page: int, button_owner_id: int) -> InlineKeyboardButton:
+    return InlineKeyboardButton(
+        "➡️", callback_data=_create_titles_bag_menu_payload(page, button_owner_id)
     )
 
 
