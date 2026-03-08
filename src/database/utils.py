@@ -1,6 +1,7 @@
+import os
 import sqlite3
 
-database_name = "/data/database.db"
+database_name = os.environ.get("DATABASE_PATH", "/data/database.db")
 head = lambda l: l[0] if l else None
 
 
