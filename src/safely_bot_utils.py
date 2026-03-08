@@ -1,7 +1,6 @@
 import asyncio
 from concurrent.futures import Future
 import datetime
-from locale import locale
 import random
 import threading
 from typing import Callable, Iterable, Optional, ParamSpec, TypeVar
@@ -16,6 +15,7 @@ from telebot.types import (
     User,
 )
 
+from bot_locale import locale
 from config import bot, config
 from logger import get_json_logger, logger
 
@@ -58,16 +58,12 @@ def edit_message_text_later(
             return edit_message_text(text, **kwargs)(message)
         return None
 
-    return lambda message: (
-        asyncio.run_coroutine_threadsafe(edit_message(message), loop)
-    )
+    return lambda message: asyncio.run_coroutine_threadsafe(edit_message(message), loop)
 
 
 def edit_message_text(text: str, **kwargs) -> Callable[[Message], None]:
-    return lambda message: (
-        do_action(bot.edit_message_text)(
-            text, message.chat.id, message.message_id, **kwargs
-        )
+    return lambda message: do_action(bot.edit_message_text)(
+        text, message.chat.id, message.message_id, **kwargs
     )
 
 
@@ -161,7 +157,7 @@ def get_chat_member(chat_id, user_id) -> ChatMember:
 
 
 def answer_callback_query(text: str) -> Callable[[CallbackQuery], None]:
-    return lambda call: (do_action(bot.answer_callback_query)(call.id, text=text))
+    return lambda call: do_action(bot.answer_callback_query)(call.id, text=text)
 
 
 def get_chat_administrators(chat_id: int) -> list[ChatMember]:
@@ -223,15 +219,13 @@ def download_file(file_path: str) -> bytes:
 def send_photo_with_user_links(
     photo: str, caption: Optional[str], parse_mode: str = "Markdown"
 ) -> Callable[[Message], Message]:
-    return lambda message: (
-        do_action(bot.send_photo)(
-            message.chat.id,
-            reply_to_message_id=message.message_id,
-            photo=photo,
-            caption=caption,
-            parse_mode=parse_mode,
-            disable_notification=True,
-        )
+    return lambda message: do_action(bot.send_photo)(
+        message.chat.id,
+        reply_to_message_id=message.message_id,
+        photo=photo,
+        caption=caption,
+        parse_mode=parse_mode,
+        disable_notification=True,
     )
 
 

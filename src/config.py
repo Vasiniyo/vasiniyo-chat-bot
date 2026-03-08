@@ -64,8 +64,10 @@ _stickers = {
     for sticker_name, uid in _unique_ids.items()
 }
 
-_to_list = lambda func: lambda value: (
-    list(map(lambda v: func(v), value if isinstance(value, list) else [value]))
+_to_list = lambda func: (
+    lambda value: list(
+        map(lambda v: func(v), value if isinstance(value, list) else [value])
+    )
 )
 
 _to_sticker_list = lambda value: _to_list(lambda v: _stickers[v])(value)
