@@ -27,7 +27,8 @@ def sigint_handler(_, __):
 
 signal.signal(signal.SIGINT, sigint_handler)
 
-if __name__ == "__main__":
+
+def run():
     mode_str = " in TEST MODE" if TEST_MODE else ""
     logger.info(f"Bot started{mode_str}")
 
