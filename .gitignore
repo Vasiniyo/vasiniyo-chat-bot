@@ -4,4 +4,8 @@
 __pycache__/
 /data
 /.env-local
+/.env-instance
 *.py[cod]
+
+instances/*
+!instances/bot-example/

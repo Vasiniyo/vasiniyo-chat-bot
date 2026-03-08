@@ -15,4 +15,4 @@ RUN mkdir -p /logs
 VOLUME ["/data"]
 
 # NOTE: add `--test` flag to run in debug mode
-CMD ["sh", "-c", "python src/main.py 2>&1 | tee /logs/logs.log"]
+CMD ["sh", "-c", "python -m src 2>&1 | tee /logs/logs.log"]

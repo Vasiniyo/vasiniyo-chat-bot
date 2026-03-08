@@ -34,7 +34,7 @@ if not _api_token:
 
 bot = telebot.TeleBot(_api_token)
 
-_toml_config = toml.load("config.toml")
+_toml_config = toml.load(os.environ.get("CONFIG_PATH", "config.toml"))
 _unique_ids = _toml_config.get("unique_file_id", {})
 _sticker_pack_names = {unique_id.split(";")[0] for unique_id in _unique_ids.values()}
 
@@ -64,8 +64,10 @@ _stickers = {
     for sticker_name, uid in _unique_ids.items()
 }
 
-_to_list = lambda func: lambda value: (
-    list(map(lambda v: func(v), value if isinstance(value, list) else [value]))
+_to_list = lambda func: (
+    lambda value: list(
+        map(lambda v: func(v), value if isinstance(value, list) else [value])
+    )
 )
 
 _to_sticker_list = lambda value: _to_list(lambda v: _stickers[v])(value)
