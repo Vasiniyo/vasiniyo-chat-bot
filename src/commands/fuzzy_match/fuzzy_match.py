@@ -1,29 +1,22 @@
 import random
 
-from rapidfuzz import fuzz, process
+from rapidfuzz import fuzz
 
 
-def find_best_match(input_text: str, category_keys: list, simmilarity=80):
-    if result := process.extractOne(input_text, category_keys, scorer=fuzz.ratio):
-        best_match, score, _ = result
-        if score >= (simmilarity):
-            return best_match
+def find_best_match(input_text: str, match_key: list, simmilarity=80):
+    match_key = match_key[0] if match_key else None
+    match_simmilarity = fuzz.partial_ratio(match_key, input_text)
+
+    if match_simmilarity >= simmilarity:
+        return match_key
     return input_text
 
 
 def choice_one_match(user_message, category_keys):
-    words = user_message.split()
     good_words = list(
         filter(
             lambda m: m[0] is not None,
-            [
-                test_match(substring, category_keys)
-                for substring in [
-                    " ".join(words[i : j + 1])
-                    for i in range(len(words))
-                    for j in range(i, len(words))
-                ]
-            ],
+            [test_match(user_message, [key]) for key in category_keys],
         )
     )
     return (None, False) if len(good_words) == 0 else random.choice(good_words)
