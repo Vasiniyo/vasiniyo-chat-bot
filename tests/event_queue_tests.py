@@ -3,7 +3,7 @@ import time
 import unittest
 from unittest.mock import patch
 
-from src.event_queue import EVENTS, add_task, cancel_task, tick
+from vasiniyo_chat_bot.event_queue import EVENTS, add_task, cancel_task, tick
 
 
 def log_tick_results(result, current_tick):
@@ -22,7 +22,7 @@ class TestEventQueueSync(unittest.TestCase):
             current_tick["i"] += 1
 
     # ---------- tests ----------------------------------------------------
-    @patch("src.event_queue.start_ticking_if_needed", lambda: None)
+    @patch("vasiniyo_chat_bot.event_queue.start_ticking_if_needed", lambda: None)
     def test_start_middle_success(self):
         EVENTS.clear()
         result, current_tick = [], {"i": 0}
@@ -34,11 +34,11 @@ class TestEventQueueSync(unittest.TestCase):
 
         add_task(
             timestamps=timestamps,
-            default={"func": record, "args": ("default",)},
+            default=lambda: record("default"),
             conditional_funcs={
-                "on_start": {"func": record, "args": ("start",)},
-                "on_success": {"func": record, "args": ("success",)},
-                middle: {"func": record, "args": ("middle",)},
+                "on_start": lambda: record("start"),
+                "on_success": lambda: record("success"),
+                middle: lambda: record("middle"),
             },
         )
 
@@ -55,7 +55,7 @@ class TestEventQueueSync(unittest.TestCase):
         self.assertEqual(result, expected)
 
     # ---------- silent-success ------------------------------------------
-    @patch("src.event_queue.start_ticking_if_needed", lambda: None)
+    @patch("vasiniyo_chat_bot.event_queue.start_ticking_if_needed", lambda: None)
     def test_silent_success(self):
         EVENTS.clear()
         result, current_tick = [], {"i": 0}
@@ -66,11 +66,11 @@ class TestEventQueueSync(unittest.TestCase):
 
         task_id = add_task(
             timestamps=timestamps,
-            default={"func": record, "args": ("default",)},
+            default=lambda: record("default"),
             conditional_funcs={
-                "on_start": {"func": record, "args": ("start",)},
-                "on_success": {"func": record, "args": ("success",)},
-                "on_cancel": {"func": record, "args": ("cancel",)},
+                "on_start": lambda: record("start"),
+                "on_success": lambda: record("success"),
+                "on_cancel": lambda: record("cancel"),
             },
         )
 
@@ -88,7 +88,7 @@ class TestEventQueueSync(unittest.TestCase):
         self.assertEqual(result, [("start", 0)])
 
     # ---------- final-tick ----------------------------------------------
-    @patch("src.event_queue.start_ticking_if_needed", lambda: None)
+    @patch("vasiniyo_chat_bot.event_queue.start_ticking_if_needed", lambda: None)
     def test_success_runs_on_final_tick(self):
         EVENTS.clear()
         result, current_tick = [], {"i": 0}
@@ -99,10 +99,10 @@ class TestEventQueueSync(unittest.TestCase):
 
         add_task(
             timestamps=timestamps,
-            default={"func": record, "args": ("default",)},
+            default=lambda: record("default"),
             conditional_funcs={
-                "on_start": {"func": record, "args": ("start",)},
-                "on_success": {"func": record, "args": ("success",)},
+                "on_start": lambda: record("start"),
+                "on_success": lambda: record("success"),
             },
         )
 
