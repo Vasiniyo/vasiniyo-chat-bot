@@ -28,4 +28,5 @@ jobs:
 
       - name: Run event_queue tests
         run: |
-          python -m unittest tests/event_queue_tests.py
+          pip install -e .
+          python -m unittest tests.event_queue_tests

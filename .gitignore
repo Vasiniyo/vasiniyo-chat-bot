@@ -7,5 +7,9 @@ __pycache__/
 /.env-instance
 *.py[cod]
 
-instances/*
 !instances/bot-example/
+instances/*
+instances/data
+instances/logs
+
+*.egg-info/
