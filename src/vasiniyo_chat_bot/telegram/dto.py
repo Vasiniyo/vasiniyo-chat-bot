@@ -10,6 +10,7 @@ class Action(Enum):
     OPEN_TITLES_BAG = "5"
     SET_TITLE_BAG = "6"
     CAPTCHA_UPDATE = "7"
+    ANIME = "8"
 
 
 class Field(Enum):
@@ -19,3 +20,4 @@ class Field(Enum):
     PAGE = "3"
     TARGET_USER_ID = "4"
     TITLE_BAG_ID = "5"
+    ANIME_GENRE = "6"
