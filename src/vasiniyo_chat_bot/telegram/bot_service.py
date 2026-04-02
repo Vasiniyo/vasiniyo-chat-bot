@@ -168,6 +168,7 @@ class BotService:
         chat_id: int,
         message_id: int,
         reply_markup: REPLY_MARKUP_TYPES | None = None,
+        is_disabled_preview: bool = True,
     ) -> None:
         text = self._to_text(text_units)
         logger.info(
@@ -179,7 +180,7 @@ class BotService:
             chat_id,
             message_id,
             parse_mode="MarkdownV2",
-            link_preview_options=LinkPreviewOptions(is_disabled=True),
+            link_preview_options=LinkPreviewOptions(is_disabled=is_disabled_preview),
             reply_markup=reply_markup,
         )
 

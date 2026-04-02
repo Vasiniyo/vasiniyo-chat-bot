@@ -1,14 +1,16 @@
 from vasiniyo_chat_bot.module.anime.anime_provider import AnimeProvider
-from vasiniyo_chat_bot.module.anime.dto import Anime
+from vasiniyo_chat_bot.module.anime.dto import Anime, AnimeGenre
 
 
 class AnimeService:
     def __init__(self, anime_providers: list[AnimeProvider]):
         self._anime_providers = anime_providers
 
-    def handle_anime(self, score: int) -> Anime:
+    def handle_anime(
+        self, score: int, anime_genre: AnimeGenre = AnimeGenre.RANDOM
+    ) -> Anime:
         for provider in self._anime_providers:
-            link = provider.next_anime(score)
+            link = provider.next_anime(score, anime_genre)
             if link:
                 return Anime(link)
         return Anime(link=None)

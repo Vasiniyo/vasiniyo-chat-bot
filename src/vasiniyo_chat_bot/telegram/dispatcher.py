@@ -159,7 +159,7 @@ class QueryHandler:
             lambda call: "*" in allowed_chats
             or str(call.message.chat.id) in allowed_chats
         )
-        self.handler = safe_wrapper(handler)(handler)
+        self.handler = safe_wrapper()(handler)
         self.kwargs = {"func": in_allowed_chat & validator}
 
 
@@ -199,6 +199,13 @@ class Controller:
         if anime_controller:
             commands[CommandKey.ANIME] = Command(
                 "/anime", anime_controller.handle_anime_command
+            )
+            self.callbacks.append(
+                QueryHandler(
+                    self._allowed_chats,
+                    anime_controller.dispatch_anime_callback,
+                    Filter(anime_controller.has_anime_payload),
+                )
             )
         if titles_controller:
             commands[CommandKey.RENAME] = Command(
@@ -327,6 +334,7 @@ def init_controller(config: Config):
         ),
         anime_controller=(
             AnimeController(
+                bot_service,
                 AnimeService([AnilistAnimeProvider(), ShikimoriAnimeProvider()]),
                 AnimeRenderer(bot_service),
             )
