@@ -46,6 +46,8 @@ def main():
         bot.message_handler(**handler.kwargs)(handler.handler)
     for handler in controller.callbacks:
         bot.callback_query_handler(**handler.kwargs)(handler.handler)
+    if inline_handler := controller.inline:
+        bot.inline_handler(**inline_handler.kwargs)(inline_handler.handler)
     bot.set_my_commands(
         [BotCommand(title, desc) for title, desc in controller.my_commands.items()]
     )

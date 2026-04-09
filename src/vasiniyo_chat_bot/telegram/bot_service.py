@@ -6,13 +6,16 @@ import logging
 import random
 import threading
 from typing import Callable
+import uuid
 
 from telebot import REPLY_MARKUP_TYPES, TeleBot
 from telebot.types import (
     ChatMember,
     File,
+    InlineQueryResultArticle,
     InputFile,
     InputMediaPhoto,
+    InputTextMessageContent,
     LinkPreviewOptions,
     Message,
     ReplyParameters,
@@ -262,6 +265,20 @@ class BotService:
             "answer_callback_query", extra={"query_id": query_id, "query": text}
         )
         self.bot.answer_callback_query(query_id, text=text, cache_time=3)
+
+    @safe_wrapper(default=None)
+    def answer_inline_query(
+        self, commands: list[tuple[str, Callable[[], str]]], query_id: str
+    ) -> None:
+        inline_results = [
+            InlineQueryResultArticle(
+                id=str(uuid.uuid4()),
+                title=title,
+                input_message_content=InputTextMessageContent(get_content()),
+            )
+            for (title, get_content) in commands
+        ]
+        self.bot.answer_inline_query(query_id, inline_results, cache_time=0)
 
     @safe_wrapper(default=None)
     def send_message(

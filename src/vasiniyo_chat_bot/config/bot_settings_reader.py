@@ -31,7 +31,17 @@ class BotSettingsReader:
         if len(allowed_chats) == 1 and allowed_chats[0] == "":
             allowed_chats = ["*"]
         mods = self._section.get(
-            "mods", ["like", "drink", "anime", "titles", "play", "reply", "captcha"]
+            "mods",
+            [
+                "like",
+                "drink",
+                "daily_size",
+                "anime",
+                "titles",
+                "play",
+                "reply",
+                "captcha",
+            ],
         )
         if "--test" in sys.argv or os.environ.get("TEST_MODE", "").lower() == "true":
             mods.append("test")

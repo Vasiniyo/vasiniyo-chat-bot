@@ -14,6 +14,7 @@ from vasiniyo_chat_bot.config import (
 )
 from vasiniyo_chat_bot.config.bot_settings_reader import BotSettingsReader
 from vasiniyo_chat_bot.config.captcha_reader import CaptchaReader
+from vasiniyo_chat_bot.config.daily_size_reader import DailySizeReader
 from vasiniyo_chat_bot.config.database_reader import DatabaseReader
 from vasiniyo_chat_bot.config.dto import Config
 from vasiniyo_chat_bot.safely_bot_utils import safe_wrapper
@@ -35,6 +36,7 @@ def load_all(path: str):
         long_message=LongMessageReader(toml_config).load(),
         custom_titles=CustomTitlesReader(toml_config).load(),
         drinks=DrinksReader(toml_config).load(),
+        daily_size_settings=DailySizeReader(toml_config).load(),
         captcha_properties=CaptchaReader(toml_config).load(),
         event=EventReader(toml_config).load(),
         bot_settings=bot_settings,
