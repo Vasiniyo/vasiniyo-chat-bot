@@ -14,11 +14,13 @@ Options:
   -r, --runtime   runtime mode (default: docker)
   -i, --instance  instance name (required)
       --test      enable test mode
+      --stop      stop docker container
   -h, --help      display this help and exit
 
 Examples:
   $(basename "$0") --runtime local --instance bot-example --test
   $(basename "$0") -r docker -i bot-example
+  $(basename "$0") --stop bot-example
 EOF
     exit 1
 }
@@ -63,6 +65,10 @@ while [[ $# -gt 0 ]]; do
             TEST_MODE="true"
             shift
             ;;
+        --stop)
+            STOP_CONTAINER=1
+            shift
+            ;;
         --help)
             usage
             exit 0
@@ -79,6 +85,13 @@ if [ -z "$INSTANCE" ]; then
 fi
 
 CONTAINER_NAME="bot-$INSTANCE"
+
+if [ -n "$STOP_CONTAINER" ]; then
+  echo "Stopping old $CONTAINER_NAME..." && docker stop "$CONTAINER_NAME" 2>/dev/null
+  echo "Removing old $CONTAINER_NAME..." && docker rm "$CONTAINER_NAME" 2>/dev/null
+  exit 0
+fi
+
 DATA_PATH="$INSTANCE_DIR/data"
 LOG_DIR="$INSTANCE_DIR/logs"
 DATABASE_PATH="$INSTANCE_DIR/data/database.db"

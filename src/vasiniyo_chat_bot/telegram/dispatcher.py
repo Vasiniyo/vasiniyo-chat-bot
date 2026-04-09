@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import logging
 from typing import Callable
 
-from telebot.types import CallbackQuery, Message
+from telebot.types import CallbackQuery, InlineQuery, Message
 
 from vasiniyo_chat_bot.anilist.anilist_anime_provider import AnilistAnimeProvider
 from vasiniyo_chat_bot.config.dto import Config
@@ -25,6 +25,7 @@ from vasiniyo_chat_bot.database.sqlite.repository.sqlite_titles_repository impor
 from vasiniyo_chat_bot.module.anime.anime_service import AnimeService
 from vasiniyo_chat_bot.module.captcha.captcha_repository import CaptchaRepository
 from vasiniyo_chat_bot.module.captcha.captcha_service import CaptchaService
+from vasiniyo_chat_bot.module.daily_size.daily_size_service import DailySizeService
 from vasiniyo_chat_bot.module.drink_or_not.drink_service import DrinkService
 from vasiniyo_chat_bot.module.help.command_key import CommandKey
 from vasiniyo_chat_bot.module.likes.like_service import LikeService
@@ -47,6 +48,9 @@ from vasiniyo_chat_bot.telegram.controller import (
     ReplyController,
     TitlesController,
 )
+from vasiniyo_chat_bot.telegram.controller.daily_size_controller import (
+    DailySizeController,
+)
 from vasiniyo_chat_bot.telegram.filter import Filter
 from vasiniyo_chat_bot.telegram.renderer import (
     AnimeRenderer,
@@ -58,6 +62,7 @@ from vasiniyo_chat_bot.telegram.renderer import (
     ReplyRenderer,
     TitlesRenderer,
 )
+from vasiniyo_chat_bot.telegram.renderer.daily_size_renderer import DailySizeRenderer
 
 logger = logging.getLogger(__name__)
 
@@ -163,10 +168,20 @@ class QueryHandler:
         self.kwargs = {"func": in_allowed_chat & validator}
 
 
+class InlineQueryHandler:
+    handler: Callable[[InlineQuery], None]
+    kwargs: dict
+
+    def __init__(self, handler: Callable[[InlineQuery], None]) -> None:
+        self.handler = safe_wrapper()(handler)
+        self.kwargs = {"func": lambda q: q.query == ""}
+
+
 class Controller:
     my_commands: dict[str, str] = dict()
     callbacks: list[QueryHandler] = list()
     messages: list[MessageHandler] = list()
+    inline: InlineQueryHandler = None
 
     def __init__(
         self, bot_service: BotService, allowed_chats: list[str], enabled_test_mode
@@ -180,6 +195,7 @@ class Controller:
         help_controller: HelpController | None = None,
         like_controller: LikeController | None = None,
         drink_controller: DrinkController | None = None,
+        daily_size_controller: DailySizeController | None = None,
         anime_controller: AnimeController | None = None,
         titles_controller: TitlesController | None = None,
         play_controller: PlayController | None = None,
@@ -196,6 +212,8 @@ class Controller:
             commands[CommandKey.DRINK_OR_NOT] = Command(
                 "/drink_or_not", drink_controller.advice_drink
             )
+        if daily_size_controller:
+            self.inline = InlineQueryHandler(daily_size_controller.get_daily_size)
         if anime_controller:
             commands[CommandKey.ANIME] = Command(
                 "/anime", anime_controller.handle_anime_command
@@ -330,6 +348,14 @@ def init_controller(config: Config):
         drink_controller=(
             DrinkController(DrinkService(config.drinks), DrinkRenderer(bot_service))
             if "drink" in config.bot_settings.mods
+            else None
+        ),
+        daily_size_controller=(
+            DailySizeController(
+                DailySizeService(config.daily_size_settings),
+                DailySizeRenderer(bot_service),
+            )
+            if "daily_size" in config.bot_settings.mods
             else None
         ),
         anime_controller=(
