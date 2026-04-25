@@ -13,14 +13,14 @@ R = TypeVar("R", bound="SqliteRepository")
 
 class SqliteRepository:
     def __init__(self, settings: SqliteDatabaseSettings) -> None:
-        self.database_name = settings.database_path
+        self._database_name = settings.database_path
         self._tx_connection = threading.local()
 
     def transaction(self, block: Callable[[Connection], T]) -> T:
         exists_conn = getattr(self._tx_connection, "conn", None)
         if exists_conn:
             return block(exists_conn)
-        conn = sqlite3.connect(self.database_name)
+        conn = sqlite3.connect(self._database_name)
         try:
             self._tx_connection.conn = conn
             try:

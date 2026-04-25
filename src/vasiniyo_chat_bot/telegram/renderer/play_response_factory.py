@@ -4,30 +4,29 @@ import random
 from vasiniyo_chat_bot.module.likes.dto import Leaderboard
 from vasiniyo_chat_bot.module.play.dto import PlayCategory, PlayStatus, Winner
 from vasiniyo_chat_bot.module.play.image_service import ImageService
-from vasiniyo_chat_bot.telegram.bot_service import (
+from vasiniyo_chat_bot.telegram.dto import (
     BoldTemplate,
-    BotService,
     ItalicTemplate,
+    Response,
     UserTemplate,
 )
+from vasiniyo_chat_bot.telegram.service.telegram_user_service import UserService
 
 
-class PlayRenderer:
+class PlayResponseFactory:
     _emoji_tiers: list[list[str]] = [
-        # fmt: off
         ["😢", "😞", "😔", "😭", "💔", "😰", "😓", "😥", "😣", "😖", "😫", "😩", "😤"],
         ["😐", "😑", "😕", "🙁", "😬", "😶", "😯", "😲", "😧", "😦", "😒"],
         ["😊", "🙂", "😌", "😏", "😀", "😃", "😄", "😺", "😸", "😇", "😎"],
-        ["😁", "😆", "🤩", "😍", "😻", "💪", "👍", "✨", "🌟", "💫", "🔥", "🎉", "🎊", ],
+        ["😁", "😆", "🤩", "😍", "😻", "💪", "👍", "✨", "🌟", "💫", "🔥", "🎉", "🎊"],
         ["🏆", "👑", "💎", "🌈", "🎯", "💯", "🚀", "⚡", "💥", "🔱", "🎭"],
-        # fmt: on
     ]
 
-    def __init__(self, bot_service: BotService, image_service: ImageService):
-        self.bot_service = bot_service
-        self.image_service = image_service
+    def __init__(self, user_service: UserService, image_service: ImageService):
+        self._user_service = user_service
+        self._image_service = image_service
 
-    def send_play_result(self, play_status: PlayStatus, chat_id: int, message_id: int):
+    def daily_result(self, play_status: PlayStatus) -> Response:
         category = play_status.category
         phrase = self._get_phrase_by_value(category, play_status.value)
         category_name = category.name
@@ -41,21 +40,9 @@ class PlayRenderer:
             "]: ",
             ItalicTemplate(phrase),
         ]
-        self.bot_service.send_message(text_units, chat_id, message_id)
+        return Response(text_units=text_units)
 
-    def send_players(self, leaderboard: Leaderboard, chat_id: int, message_id: int):
-        if not leaderboard.rows:
-            self.bot_service.send_message(
-                "К сожалению, игроков нет...", chat_id, message_id
-            )
-            return
-        self.bot_service.send_leaderboard(
-            leaderboard, f"Сегодняшние результаты:", chat_id, message_id
-        )
-
-    def send_winner(
-        self, winner: Winner, category: PlayCategory, chat_id: int, message_id: int
-    ):
+    def winner(self, chat_id: int, winner: Winner, category: PlayCategory) -> Response:
         units = category.units
         category_name = category.name
         emoji = self._get_emoji_for_value(category, winner.value, force_top=True)
@@ -71,34 +58,51 @@ class PlayRenderer:
             f"] {units}!\nОго! Поздравляю!",
         ]
         if not winner.first_in_day:
-            self.bot_service.send_message(text_units, chat_id, message_id)
-            return
+            return Response(text_units=text_units)
         try:
-            picture = self.image_service.create_picture(
-                profile_photo=self.bot_service.get_profile_photo(winner.winner_id)
+            picture = self._image_service.create_picture(
+                profile_photo=self._user_service.get_photo(winner.winner_id)
             )
-            self.bot_service.send_photo(picture, chat_id, message_id, text_units)
+            return Response(text_units=text_units, picture=picture)
         except Exception as e:
             logging.exception(e)
-            self.bot_service.send_message(text_units, chat_id, message_id)
+            return Response(text_units=text_units)
 
-    def send_winners(self, leaderboard: Leaderboard, chat_id: int, message_id: int):
+    def _get_emoji_for_value(
+        self, category: PlayCategory, value: int, force_top: bool = False
+    ) -> str:
+        if force_top:
+            return random.choice(self._emoji_tiers[-1])
+        min_v = min(min(category.ranges))
+        max_v = max(max(category.ranges))
+        value_count = max_v - min_v + 1
+        emoji_count = len(self._emoji_tiers)
+        step = value_count / emoji_count
+        index = max(0, min(emoji_count - 1, int((value - min_v) / step)))
+        return random.choice(self._emoji_tiers[index])
+
+    @staticmethod
+    def players(leaderboard: Leaderboard):
         if not leaderboard.rows:
-            self.bot_service.send_message(
-                "Ещё не было сыграно ни одной игры!", chat_id, message_id
-            )
-            return
-        self.bot_service.send_leaderboard(
-            leaderboard, "🏆 Топ победителей за всё время:", chat_id, message_id
+            text = "К сожалению, игроков нет..."
+            return Response(text_units=text)
+        text = PlayResponseFactory._get_leaderboard(
+            "Сегодняшние результаты:", leaderboard
         )
+        return Response(text_units=text)
 
-    def send_debug_category(
-        self,
-        category: PlayCategory,
-        chat_id: int,
-        message_id: int,
-        leaderboard: Leaderboard,
-    ):
+    @staticmethod
+    def leaderboard(leaderboard: Leaderboard):
+        if not leaderboard.rows:
+            text = "Ещё не было сыграно ни одной игры!"
+            return Response(text_units=text)
+        text = PlayResponseFactory._get_leaderboard(
+            "🏆 Топ победителей за всё время:", leaderboard
+        )
+        return Response(text_units=text)
+
+    @staticmethod
+    def debug_daily_result(category: PlayCategory, leaderboard: Leaderboard):
         text_units = [
             (
                 f"Категория: {category.name}\n"
@@ -118,20 +122,7 @@ class PlayRenderer:
                 ]
             ],
         ]
-        self.bot_service.send_message(text_units, chat_id, message_id=message_id)
-
-    def _get_emoji_for_value(
-        self, category: PlayCategory, value: int, force_top: bool = False
-    ) -> str:
-        if force_top:
-            return random.choice(self._emoji_tiers[-1])
-        min_v = min(min(category.ranges))
-        max_v = max(max(category.ranges))
-        value_count = max_v - min_v + 1
-        emoji_count = len(self._emoji_tiers)
-        step = value_count / emoji_count
-        index = max(0, min(emoji_count - 1, int((value - min_v) / step)))
-        return random.choice(self._emoji_tiers[index])
+        return Response(text_units=text_units)
 
     @staticmethod
     def _get_phrase_by_value(category: PlayCategory, value: int) -> str:
@@ -140,3 +131,15 @@ class PlayRenderer:
             if value <= sorted_ranges[i]:
                 return random.choice(category.thresholds[sorted_ranges[i]])
         return random.choice(category.thresholds[0])
+
+    @staticmethod
+    def _get_leaderboard(header, leaderboard: Leaderboard) -> list[str | UserTemplate]:
+        return [f"{header}\n"] + [
+            item
+            for position, row in enumerate(leaderboard.rows)
+            for item in [
+                f"{position + 1}. ",
+                UserTemplate(leaderboard.chat_id, row.user_id),
+                f" — {row.value}\n",
+            ]
+        ]

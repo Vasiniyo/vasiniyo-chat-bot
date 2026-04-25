@@ -14,10 +14,12 @@ class LikesDao:
             """
             insert into likes (chat_id, from_user_id, to_user_id)
             values (?, ?, ?)
-            on conflict (chat_id, from_user_id) do update set to_user_id = ?
+            on conflict (chat_id, from_user_id)
+            do update set
+                to_user_id = excluded.to_user_id
             returning chat_id, from_user_id, to_user_id
             """,
-            (chat_id, from_user_id, to_user_id, to_user_id),
+            (chat_id, from_user_id, to_user_id),
         )
         return LikeEntity(
             chat_id=result_row[0], from_user_id=result_row[1], to_user_id=result_row[2]

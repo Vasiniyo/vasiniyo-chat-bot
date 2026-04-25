@@ -3,7 +3,7 @@ import logging
 import traceback
 from typing import TypedDict
 
-from telebot.types import CallbackQuery, Chat, Message, User
+from telebot.types import CallbackQuery, Message
 
 
 class RollType(Enum):
@@ -35,27 +35,12 @@ class LogFormatter(logging.Formatter):
         extras = []
         for k, v in record.__dict__.items():
             if k not in (
-                "name",
-                "msg",
-                "args",
-                "levelname",
-                "levelno",
-                "pathname",
-                "filename",
-                "module",
-                "exc_info",
-                "exc_text",
-                "stack_info",
-                "lineno",
-                "funcName",
-                "created",
-                "msecs",
-                "relativeCreated",
-                "thread",
-                "threadName",
-                "processName",
-                "process",
-                "taskName",
+                # fmt: off
+                "name", "msg", "args", "levelname", "levelno", "pathname",
+                "filename", "module", "exc_info", "exc_text", "stack_info", "lineno",
+                "funcName", "created", "msecs", "relativeCreated", "thread",
+                "threadName", "processName", "process", "taskName",
+                # fmt: on
             ):
                 match k:
                     case "tg_call":

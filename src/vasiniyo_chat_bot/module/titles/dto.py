@@ -17,8 +17,18 @@ class RenameMenu:
 
 
 @dataclass(frozen=True)
+class TitleInfo:
+    id: int
+    user_id: int
+    title: str
+    is_inventory: bool
+    username: str | None = None
+
+
+@dataclass(frozen=True)
 class StealMenu:
-    titles: list[tuple[int, str]]
+    chat_id: int
+    titles: list[TitleInfo]
     page: int
     has_prev_pages: bool
     has_more_pages: bool
@@ -26,23 +36,19 @@ class StealMenu:
 
 @dataclass(frozen=True)
 class TitlesBagMenu:
-    titles: list[tuple[int, str]]
+    titles: list[tuple[int, int, str]]
     page: int
     has_prev_pages: bool
     has_more_pages: bool
 
 
 @dataclass(frozen=True)
-class StealSuccessResult:
+class StealResult:
     actor_id: int
     target_id: int
     target_title: str
     actor_title: str
-
-
-@dataclass(frozen=True)
-class StealFailureResult:
-    pass
+    changed: bool
 
 
 @dataclass(frozen=True)

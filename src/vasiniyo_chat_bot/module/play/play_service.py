@@ -2,7 +2,7 @@ import random
 
 from vasiniyo_chat_bot.module.likes.dto import Leaderboard, LeaderboardRow
 from vasiniyo_chat_bot.module.play.dto import PlayCategory, PlayStatus, Winner, WinValue
-from vasiniyo_chat_bot.module.play.event_player_repository import EventPlayersRepository
+from vasiniyo_chat_bot.module.play.event_player_service import EventPlayersService
 from vasiniyo_chat_bot.module.play.events_repository import EventsRepository
 from vasiniyo_chat_bot.safely_bot_utils import daily_hash
 
@@ -12,12 +12,12 @@ class PlayService:
 
     def __init__(
         self,
-        event_players_repository: EventPlayersRepository,
+        event_players_service: EventPlayersService,
         event_repository: EventsRepository,
         categories: list[PlayCategory],
     ):
-        self.event_repository = event_repository
-        self.event_players_repository = event_players_repository
+        self._event_repository = event_repository
+        self._players_service = event_players_service
         self._categories = categories
 
     def get_daily_score(self, chat_id: int, user_id: int) -> PlayStatus | None:
@@ -31,8 +31,8 @@ class PlayService:
         if not scores:
             return None
         chat_id = leaderboard.chat_id
-        if not self.event_repository.is_day_passed(chat_id, self._play_event_id):
-            winner_id = self.event_repository.get_last_winner(
+        if not self._event_repository.is_day_passed(chat_id, self._play_event_id):
+            winner_id = self._event_repository.get_last_winner(
                 chat_id, self._play_event_id
             )
             win_score = next(
@@ -45,11 +45,11 @@ class PlayService:
                     first_in_day=False,
                 )
         winner_id, value = scores[0].user_id, scores[0].value
-        self.event_repository.insert_winner(chat_id, winner_id, self._play_event_id)
+        self._event_repository.insert_winner(chat_id, winner_id, self._play_event_id)
         return Winner(winner_id=winner_id, value=value, first_in_day=True)
 
     def handle_top_winners(self, chat_id: int, limit: int) -> Leaderboard:
-        return self.event_repository.get_leaderboard(
+        return self._event_repository.get_leaderboard(
             chat_id, self._play_event_id, limit
         )
 
@@ -61,7 +61,7 @@ class PlayService:
         extra_players: list[int] | None = None,
     ) -> Leaderboard:
         players = {
-            *self.event_players_repository.get_players(chat_id),
+            *self._players_service.get_players(chat_id),
             *(extra_players if extra_players is not None else {}),
         }
         scores = [

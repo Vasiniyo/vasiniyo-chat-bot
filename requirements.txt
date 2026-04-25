@@ -1,7 +1,7 @@
 black==26.3.1
-isort==6.0.1
-pyTelegramBotAPI==4.26.0
-RapidFuzz==3.0.0
+isort==8.0.1
+pyTelegramBotAPI==4.33.0
+RapidFuzz==3.14.5
 toml==0.10.2
 captcha==0.7.1
-pillow==11.1.0
+pillow==12.2.0

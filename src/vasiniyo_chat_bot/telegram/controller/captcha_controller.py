@@ -1,147 +1,132 @@
-from dataclasses import dataclass
-
-from telebot.types import CallbackQuery, Message
+from dataclasses import dataclass, replace
 
 from vasiniyo_chat_bot.event_queue import EVENTS, add_task, cancel_task, logger
 from vasiniyo_chat_bot.module.captcha.captcha_service import CaptchaService
 from vasiniyo_chat_bot.safely_bot_utils import extract_field, parse_json
-from vasiniyo_chat_bot.telegram.bot_service import BotService
-from vasiniyo_chat_bot.telegram.dto import Action, Field
-from vasiniyo_chat_bot.telegram.renderer.captcha_renderer import CaptchaRenderer
+from vasiniyo_chat_bot.telegram.dto import (
+    Action,
+    CallbackContext,
+    Field,
+    MessageContext,
+    UserContext,
+)
+from vasiniyo_chat_bot.telegram.renderer.captcha_response_factory import (
+    CaptchaResponseFactory,
+)
+from vasiniyo_chat_bot.telegram.renderer.renderer import Renderer
+from vasiniyo_chat_bot.telegram.service.telegram_user_service import UserService
 
 
 @dataclass(frozen=True)
-class CaptchaSession:
+class _CaptchaSession:
     task_id: str
     message_id: int
 
 
 class CaptchaController:
-    captcha_queue: dict[tuple[int, int], CaptchaSession] = {}
+    _captcha_queue: dict[tuple[int, int], _CaptchaSession] = {}
 
     def __init__(
         self,
+        user_service: UserService,
         captcha_service: CaptchaService,
-        bot_service: BotService,
-        captcha_renderer: CaptchaRenderer,
+        response_factory: CaptchaResponseFactory,
+        renderer: Renderer,
     ) -> None:
-        self.captcha_service = captcha_service
-        self.bot_service = bot_service
-        self.captcha_renderer = captcha_renderer
+        self._user_service = user_service
+        self._captcha_service = captcha_service
+        self._response_factory = response_factory
+        self._renderer = renderer
 
-    def are_captcha_user(self, message: Message) -> bool:
-        return (message.chat.id, message.from_user.id) in self.captcha_queue
+    def handle_new_user(self, ctx: UserContext):
+        user = self._captcha_service.generate_captcha(ctx.chat_id, ctx.user_id)
+        freq = self._captcha_service._captcha_properties.validate.update_freq
+        timestamps = list(range(freq, user.time_left + 1, freq))
+        logger.info(
+            "captcha_new_user",
+            extra={
+                "chat_id": user.chat_id,
+                "user_id": user.user_id,
+                "attempts": user.failed_attempts,
+                "time_seconds": user.time_left,
+                "answer": user.answer,
+            },
+        )
+        task_id = add_task(
+            timestamps=timestamps,
+            default=lambda: self.update_captcha_message(ctx),
+            conditional_funcs={
+                "on_success": lambda: self.handle_captcha_failure(ctx, "Время вышло"),
+                "on_cancel": lambda: self.handle_captcha_failure(ctx, "Капча отменена"),
+            },
+        )
+        response = self._response_factory.captcha(user)
+        captcha_message_id = self._renderer.send(response, ctx)
+        session = _CaptchaSession(task_id, captcha_message_id)
+        self._captcha_queue[ctx.chat_id, ctx.user_id] = session
 
-    def handle_new_user(self, message: Message):
-        chat_id = message.chat.id
-        for member in message.new_chat_members:
-            user_id = member.id
-            if member.is_bot:
-                logger.info(
-                    "captcha_new_user",
-                    extra={"user_id": user_id, "details": "user is bot, skipping"},
-                )
-                continue
-            captcha_user = self.captcha_service.generate_captcha(chat_id, user_id)
-            message_id = self.captcha_renderer.send_captcha(captcha_user, message)
-            freq = self.captcha_service.captcha_properties.validate.update_freq
-            timestamps = list(range(freq, captcha_user.time_left + 1, freq))
-            logger.info(
-                "captcha_new_user",
-                extra={
-                    "chat_id": captcha_user.chat_id,
-                    "user_id": captcha_user.user_id,
-                    "attempts": captcha_user.failed_attempts,
-                    "time_seconds": captcha_user.time_left,
-                    "answer": captcha_user.answer,
-                },
-            )
-            task_id = add_task(
-                timestamps=timestamps,
-                default=lambda: self.update_captcha_message(chat_id, user_id),
-                conditional_funcs={
-                    "on_success": lambda: self.handle_captcha_failure(
-                        user_id, "Время вышло", chat_id
-                    ),
-                    "on_cancel": lambda: self.handle_captcha_failure(
-                        user_id, "Капча отменена", chat_id
-                    ),
-                },
-            )
-            self.captcha_queue[chat_id, user_id] = CaptchaSession(task_id, message_id)
-
-    def handle_verify_captcha(self, message: Message):
-        chat_id = message.chat.id
-        user_id = message.from_user.id
-        self.bot_service.delete_message(chat_id, message.id)
-        if self.captcha_service.validate_captcha(chat_id, user_id, message.text):
-            self.handle_captcha_success(chat_id, user_id)
+    def handle_verify_captcha(self, ctx: MessageContext):
+        self._renderer.delete(ctx)
+        if self._captcha_service.validate_captcha(ctx.chat_id, ctx.user_id, ctx.text):
+            self.handle_captcha_success(ctx)
             return
-        captcha_user = self.captcha_service.increase_failed_attempts(chat_id, user_id)
-        if self.captcha_service.attempts_remained(captcha_user):
-            self.update_captcha_message(chat_id, user_id)
+        user = self._captcha_service.increase_failed_attempts(ctx.chat_id, ctx.user_id)
+        if self._captcha_service.attempts_remained(user):
+            self.update_captcha_message(ctx)
         else:
-            self.handle_captcha_failure(user_id, "Max attempts used", chat_id)
+            self.handle_captcha_failure(ctx, "Max attempts used")
 
-    def handle_captcha_button_press(self, call: CallbackQuery):
-        message = call.message
-        user_id = call.from_user.id
-        chat_id = message.chat.id
-        payload_user_id = extract_field(parse_json(call.data), Field.USER_ID)
-        if call.from_user.id != payload_user_id:
-            self.bot_service.answer_callback_query(
-                "Эти кнопки были не для тебя!", call.id
-            )
+    def handle_captcha_button_press(self, ctx: CallbackContext):
+        payload_user_id = extract_field(parse_json(ctx.data), Field.USER_ID)
+        if ctx.user_id != payload_user_id:
+            response = self._response_factory.no_access()
+            self._renderer.alert(response, ctx)
             return
-        captcha_user = self.captcha_service.regenerate_captcha(chat_id, user_id)
-        session = self.captcha_queue.get((chat_id, user_id))
+        user = self._captcha_service.regenerate_captcha(ctx.chat_id, ctx.user_id)
+        session = self._captcha_queue.get((ctx.chat_id, ctx.user_id))
         if session:
-            self.captcha_renderer.regenerate_captcha(
-                captcha_user, chat_id, session.message_id
-            )
+            response = self._response_factory.captcha(user)
+            self._renderer.edit(response, replace(ctx, message_id=session.message_id))
 
-    def handle_captcha_success(self, chat_id: int, user_id: int):
-        session = self.captcha_queue.pop((chat_id, user_id), None)
+    def handle_captcha_success(self, ctx: UserContext):
+        session = self._captcha_queue.pop((ctx.chat_id, ctx.user_id), None)
         if session:
             cancel_task(session.task_id, silently=True)
-            self.captcha_service.remove_user(chat_id, user_id)
-            self.captcha_renderer.passed_captcha(chat_id, session.message_id)
+            response = self._response_factory.passed_captcha()
+            self._captcha_service.remove_user(ctx.chat_id, ctx.user_id)
+            self._renderer.delete(ctx)
+            self._renderer.send(response, replace(ctx, message_id=session.message_id))
 
-    def handle_captcha_failure(self, user_id: int, reason: str, chat_id: int):
-        timer = self.captcha_service.captcha_properties.validate.timer
-        session = self.captcha_queue.get((chat_id, user_id))
+    def handle_captcha_failure(self, ctx: UserContext, reason: str):
+        session = self._captcha_queue.get((ctx.chat_id, ctx.user_id))
+        if session:
+            self._captcha_queue.pop((ctx.chat_id, ctx.user_id), None)
+            self._captcha_service.remove_user(ctx.chat_id, ctx.user_id)
+            response = self._response_factory.failed_captcha(reason)
+            self._renderer.edit_caption(
+                response, replace(ctx, message_id=session.message_id)
+            )
+        self._user_service.ban(ctx)
+
+    def update_captcha_message(self, ctx: UserContext):
+        timer = self._captcha_service._captcha_properties.validate.timer
+        session = self._captcha_queue.get((ctx.chat_id, ctx.user_id))
         if session:
             event = EVENTS.get(session.task_id, {})
             event_offset = event.get("offset", timer)
             event_time_left = timer - event_offset
-            captcha_user = self.captcha_service.update_captcha_time_left(
-                chat_id, user_id, event_time_left
+            user = self._captcha_service.update_captcha_time_left(
+                ctx.chat_id, ctx.user_id, event_time_left
             )
-            self.captcha_queue.pop((chat_id, user_id), None)
-            self.captcha_service.remove_user(chat_id, user_id)
-            self.captcha_renderer.failed_captcha(
-                captcha_user, chat_id, session.message_id, reason
-            )
-        self.bot_service.ban_chat_member(chat_id, user_id)
-
-    def update_captcha_message(self, chat_id: int, user_id: int):
-        timer = self.captcha_service.captcha_properties.validate.timer
-        session = self.captcha_queue.get((chat_id, user_id))
-        if session:
-            event = EVENTS.get(session.task_id, {})
-            event_offset = event.get("offset", timer)
-            event_time_left = timer - event_offset
-            captcha_user = self.captcha_service.update_captcha_time_left(
-                chat_id, user_id, event_time_left
-            )
-            self.captcha_renderer.next_captcha_state(
-                user_id, captcha_user, chat_id, session.message_id
+            response = self._response_factory.description(user)
+            self._renderer.edit_caption(
+                response, replace(ctx, message_id=session.message_id)
             )
 
-    def is_captcha_user(self, message: Message) -> bool:
-        return (message.chat.id, message.from_user.id) in self.captcha_queue
+    def is_captcha_user(self, ctx: UserContext) -> bool:
+        return (ctx.chat_id, ctx.user_id) in self._captcha_queue
 
     @staticmethod
-    def has_captcha_payload(call: CallbackQuery) -> bool:
-        payload = parse_json(call.data)
+    def has_captcha_payload(ctx: CallbackContext) -> bool:
+        payload = parse_json(ctx.data)
         return payload.get(Field.ACTION_TYPE.value) == Action.CAPTCHA_UPDATE.value

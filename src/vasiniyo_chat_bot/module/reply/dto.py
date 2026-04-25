@@ -41,6 +41,7 @@ class LongMessage:
 @dataclass(frozen=True)
 class StickerResult:
     file_id: str
+    to_reply: True = True
 
 
 @dataclass(frozen=True)

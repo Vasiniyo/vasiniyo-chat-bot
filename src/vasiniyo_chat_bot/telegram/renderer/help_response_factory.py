@@ -1,11 +1,8 @@
 from vasiniyo_chat_bot.module.help.command_key import CommandKey
-from vasiniyo_chat_bot.telegram.bot_service import BotService
+from vasiniyo_chat_bot.telegram.dto import Response
 
 
-class HelpRenderer:
-    def __init__(self, bot_service: BotService):
-        self.bot_service = bot_service
-
+class HelpResponseFactory:
     helps = {
         CommandKey.HELP: "Выводит список доступных команд и их описание.",
         CommandKey.ANIME: "Выбирает случайное аниме.",
@@ -21,16 +18,15 @@ class HelpRenderer:
         CommandKey.TEST_NEW_WINNER: "Выбрать случайного победителя.",
     }
 
-    def send(self, commands: dict[CommandKey, str], chat_id: int, message_id: int):
-        help_text = f"Доступные команды:\n\n" + "\n".join(
-            f"{title} - {self.helps.get(help_key, 'Описание отсутствует')}"
+    @staticmethod
+    def send(commands: dict[CommandKey, str]):
+        text = f"Доступные команды:\n\n" + "\n".join(
+            f"{title} - {HelpResponseFactory.helps.get(help_key, 'Описание отсутствует')}"
             for help_key, title in commands.items()
         )
-        self.bot_service.send_message(help_text, chat_id, message_id)
+        return Response(text_units=text)
 
-    def send_unknown_command(self, chat_id: int, message_id: int):
-        self.bot_service.send_message(
-            "🤯 Я такой команды не знаю! Посмотреть доступные можно при помощи /help",
-            chat_id,
-            message_id,
-        )
+    @staticmethod
+    def send_unknown_command():
+        text = "🤯 Я такой команды не знаю! Посмотреть доступные можно при помощи /help"
+        return Response(text_units=text)

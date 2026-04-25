@@ -2,8 +2,7 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class TitleEntity:
+class TitlesStateEntity:
     chat_id: int
     user_id: int
-    user_title: str
     last_changing: int

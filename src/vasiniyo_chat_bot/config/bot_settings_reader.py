@@ -33,14 +33,11 @@ class BotSettingsReader:
         mods = self._section.get(
             "mods",
             [
-                "like",
-                "drink",
-                "daily_size",
-                "anime",
-                "titles",
-                "play",
-                "reply",
-                "captcha",
+                # fmt: off
+                "like", "drink", "daily_size",
+                "anime", "titles", "play",
+                "reply", "captcha",
+                # fmt: on
             ],
         )
         if "--test" in sys.argv or os.environ.get("TEST_MODE", "").lower() == "true":

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class LeaderboardRow:
     user_id: int
-    value: str | int | tuple[int, str]
+    value: str | int | tuple[int, int, str]
 
 
 @dataclass(frozen=True)

@@ -23,7 +23,6 @@ class Validate:
 class Captcha:
     gen: Gen
     validate: Validate
-    content_types: list[str]
     greeting_message: str
 
 
