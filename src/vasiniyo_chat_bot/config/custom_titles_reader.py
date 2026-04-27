@@ -1,6 +1,9 @@
-import bisect
-
-from vasiniyo_chat_bot.module.titles.dto import CustomTitles
+from vasiniyo_chat_bot.module.titles.dto import (
+    AdjectiveGroup,
+    CustomTitles,
+    NounGroup,
+    Nouns,
+)
 
 
 class CustomTitlesReader:
@@ -8,23 +11,13 @@ class CustomTitlesReader:
         self._section = section
 
     def load(self) -> CustomTitles:
-        _adjectives = sorted(
-            set(
-                [
-                    str(x)
-                    for x in self._section.get("custom-titles", {}).get(
-                        "adjectives", []
-                    )
-                ]
+        adjectives = self._section.get("custom-titles", {}).get("adjectives", [])
+        nouns = self._section.get("custom-titles", {}).get("nouns", {})
+        return CustomTitles(
+            adjectives=[AdjectiveGroup(**adj) for adj in adjectives],
+            nouns=Nouns(
+                male=[NounGroup(**n) for n in nouns.get("male")],
+                female=[NounGroup(**n) for n in nouns.get("female")],
+                neuter=[NounGroup(**n) for n in nouns.get("neuter")],
             ),
-            key=len,
         )
-        _nouns = list(set(self._section.get("custom-titles", {}).get("nouns", [])))
-        _weights = []
-
-        for adj in _adjectives:
-            max_len = 15 - len(adj)
-            count = bisect.bisect_right([len(n) for n in _nouns], max_len)
-            _weights.append(count)
-
-        return CustomTitles(adjectives=_adjectives, nouns=_nouns, weights=_weights)

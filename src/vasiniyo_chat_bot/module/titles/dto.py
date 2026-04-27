@@ -1,11 +1,33 @@
 from dataclasses import dataclass
 
 
-@dataclass
+@dataclass(frozen=True)
+class AdjectiveGroup:
+    base: list[str]
+    male_ending: str
+    female_ending: str
+    neuter_ending: str
+    plural_ending: str
+
+
+@dataclass(frozen=True)
+class NounGroup:
+    base: list[str]
+    singular_ending: str
+    plural_ending: str
+
+
+@dataclass(frozen=True)
+class Nouns:
+    male: list[NounGroup]
+    female: list[NounGroup]
+    neuter: list[NounGroup]
+
+
+@dataclass(frozen=True)
 class CustomTitles:
-    adjectives: list[str]
-    nouns: list[str]
-    weights: list[int]
+    adjectives: list[AdjectiveGroup]
+    nouns: Nouns
 
 
 @dataclass(frozen=True)
