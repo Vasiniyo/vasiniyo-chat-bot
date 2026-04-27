@@ -1,217 +1,217 @@
-from dataclasses import dataclass
-import logging
+from __future__ import annotations
 
-from telebot.types import CallbackQuery, Message
+from dataclasses import replace
+from functools import wraps
 
-from vasiniyo_chat_bot.module.titles.dto import StealMenu, TitleChanged
+from vasiniyo_chat_bot.module.titles.dto import RenameMenu, TitleChanged, TitlesBagMenu
 from vasiniyo_chat_bot.module.titles.titles_service import TitlesService
-from vasiniyo_chat_bot.safely_bot_utils import extract_field, parse_json
-from vasiniyo_chat_bot.telegram.bot_service import BotService
-from vasiniyo_chat_bot.telegram.dto import Action, Field
-from vasiniyo_chat_bot.telegram.renderer.titles_renderer import TitlesRenderer
+from vasiniyo_chat_bot.telegram.dto import (
+    Action,
+    CallbackContext,
+    Response,
+    TitlesBagItemView,
+    TitlesBagMenuView,
+    UserContext,
+)
+from vasiniyo_chat_bot.telegram.payload.titles_payload_factory import (
+    TitlesPayloadFactory,
+)
+from vasiniyo_chat_bot.telegram.renderer.renderer import Renderer
+from vasiniyo_chat_bot.telegram.renderer.titles_response_factory import (
+    TitlesResponseFactory,
+)
+from vasiniyo_chat_bot.telegram.service.telegram_roll_service import RollService
+from vasiniyo_chat_bot.telegram.service.telegram_user_service import UserService
 
 
-@dataclass(frozen=True)
-class CallBackPayload:
-    action: Action
-    user_id: int
-    dice_value: int | None = None
-    page: int | None = None
-    target_id: int | None = None
-    title_bag_id: int | None = None
+def _require_daily_action(func):
+    @wraps(func)
+    def wrapper(self: TitlesController, ctx: CallbackContext, *args, **kwargs):
+        if self._titles_service.is_day_passed(ctx.chat_id, ctx.user_id):
+            return func(self, ctx, *args, **kwargs)
+        response = self._response_factory.already_rolled()
+        self._renderer.edit(response, ctx)
+
+    return wrapper
+
+
+def titles_bag_to_view(titles_bag: TitlesBagMenu) -> TitlesBagMenuView:
+    return TitlesBagMenuView(
+        items=[
+            TitlesBagItemView(user_id=user_id, titles_bag_id=title_bag_id, title=title)
+            for title_bag_id, user_id, title in titles_bag.titles
+        ],
+        page=titles_bag.page,
+        has_prev_pages=titles_bag.has_prev_pages,
+        has_more_pages=titles_bag.has_more_pages,
+    )
 
 
 class TitlesController:
-    _valid_payload_actions = {
-        Action.ROLL_RANDOM_D6.value,
-        Action.ROLL_D6.value,
-        Action.OPEN_RENAME_MENU.value,
-        Action.OPEN_STEAL_MENU.value,
-        Action.STEAL_TITLE.value,
-        Action.OPEN_TITLES_BAG.value,
-        Action.SET_TITLE_BAG.value,
-    }
-
     def __init__(
         self,
         titles_service: TitlesService,
-        bot_service: BotService,
-        titles_renderer: TitlesRenderer,
+        roll_service: RollService,
+        user_service: UserService,
+        response_factory: TitlesResponseFactory,
+        renderer: Renderer,
     ):
-        self.titles_service = titles_service
-        self.bot_service = bot_service
-        self.titles_renderer = titles_renderer
+        self._titles_service = titles_service
+        self._roll_service = roll_service
+        self._user_service = user_service
+        self._response_factory = response_factory
+        self._renderer = renderer
 
-    def _set_title(
-        self, title_changed: TitleChanged, chat_id: int, message_id: int, user_id: int
-    ) -> None:
-        if not title_changed.changed:
-            self.titles_renderer.send_title_not_changed(chat_id, message_id)
-            return
-        tg_title = self.bot_service.set_title(chat_id, user_id, title_changed.title)
-        if tg_title == title_changed.title:
-            self.titles_renderer.send_title_changed(
-                title_changed.title, chat_id, message_id
-            )
-        else:
-            self.titles_renderer.send_title_changed_failed(
-                title_changed.title, chat_id, message_id
-            )
-
-    def try_sync_titles(self, chat_id: int, message_id: int, user_id: int):
-        db_title = self.titles_service.get_user_title(chat_id, user_id)
+    def try_sync_titles(self, db_title: str, ctx: UserContext) -> bool:
         if not db_title:
-            self.bot_service.set_default_title(chat_id, user_id)
+            self._user_service.set_default_title(ctx)
             return True
-        tg_title = self.bot_service.get_admin_title(chat_id, user_id)
+        tg_title = self._user_service.get_title(ctx)
         if tg_title == db_title:
             return True
-        if db_title == self.bot_service.set_title(chat_id, user_id, db_title):
+        if db_title == self._user_service.set_title(ctx, db_title):
             return True
-        self.titles_renderer.send_please_set_title(db_title, chat_id, message_id)
         return False
 
-    def handle_rename(self, message: Message):
-        chat_id = message.chat.id
-        user_id = message.from_user.id
-        if not self.try_sync_titles(chat_id, message.id, user_id):
+    def handle_rename(self, ctx: UserContext):
+        db_title = self._titles_service.get_user_title(ctx.chat_id, ctx.user_id)
+        if not self.try_sync_titles(db_title, ctx):
+            response = self._response_factory.please_set_title(db_title)
+            self._renderer.send(response, ctx)
             return
-        result = self.titles_service.rename(chat_id, user_id)
+        result = self._titles_service.rename(ctx.chat_id, ctx.user_id)
         if isinstance(result, TitleChanged):
-            self._set_title(result, chat_id, message.id, user_id)
+            response = self._set_title(result, ctx)
+            self._renderer.send(response, ctx)
             return
-        self.titles_renderer.send_rename_menu(result, chat_id, message.id, user_id)
+        response = self._response_factory.rename_menu(ctx.user_id, result)
+        self._renderer.send(response, ctx)
 
-    def handle_random_dice_roll(self, call: CallbackQuery):
-        message = call.message
-        user_id = call.from_user.id
-        chat_id = message.chat.id
-        if not self.titles_service.is_day_passed(chat_id, user_id):
-            self.titles_renderer.send_already_rolled(chat_id, message.id)
+    def dispatch_titles_callback(self, ctx: CallbackContext):
+        callback_payload = TitlesPayloadFactory.get_payload(ctx.data)
+        if ctx.user_id != callback_payload.user_id:
+            response = self._response_factory.no_access()
+            self._renderer.alert(response, ctx)
             return
-        self.bot_service.clear_markup(chat_id, message.id)
-        success = self.bot_service.roll_random_dice(chat_id, message.id)
-        title_changed = self.titles_service.handle_roll(chat_id, user_id, success)
-        self._set_title(title_changed, chat_id, message.id, user_id)
-
-    def handle_dice_roll(self, call: CallbackQuery, dice_value: int):
-        message = call.message
-        chat_id = message.chat.id
-        user_id = call.from_user.id
-        if not self.titles_service.is_day_passed(chat_id, user_id):
-            self.titles_renderer.send_already_rolled(chat_id, message.id)
-            return
-        self.bot_service.clear_markup(chat_id, message.id)
-        success = self.bot_service.roll_dice(dice_value, chat_id, message.id)
-        title_changed = self.titles_service.handle_roll(chat_id, user_id, success)
-        self._set_title(title_changed, chat_id, message.id, user_id)
-
-    def handle_back_to_rename_menu(self, call: CallbackQuery):
-        message = call.message
-        user_id = call.from_user.id
-        chat_id = message.chat.id
-        menu = self.titles_service.show_rename_menu(chat_id, user_id)
-        self.titles_renderer.back_to_rename_menu(menu, chat_id, message.id, user_id)
-
-    def show_steal_menu(self, call: CallbackQuery, page: int, page_size: int = 9):
-        message = call.message
-        user_id = call.from_user.id
-        chat_id = message.chat.id
-        menu = self.titles_service.show_steal_menu(chat_id, user_id, page, page_size)
-        if isinstance(menu, StealMenu):
-            self.titles_renderer.send_steal_menu(menu, chat_id, message.id, user_id)
-        else:
-            self.titles_renderer.back_to_rename_menu(menu, chat_id, message.id, user_id)
-
-    def handle_steal(self, call: CallbackQuery, target_id: int):
-        message = call.message
-        user_id = call.from_user.id
-        chat_id = message.chat.id
-        if not self.titles_service.is_day_passed(chat_id, user_id):
-            self.titles_renderer.send_already_rolled(chat_id, message.id)
-            return
-        self.bot_service.clear_markup(chat_id, message.id)
-        success = self.bot_service.roll_random_dice(chat_id, message.id)
-        result = self.titles_service.handle_steal(chat_id, user_id, target_id, success)
-        if not result:
-            self.titles_renderer.send_steal_failed(chat_id, message.id)
-            return
-        tg_actor_title = self.bot_service.set_title(
-            chat_id, result.actor_id, result.actor_title
-        )
-        tg_target_title = self.bot_service.set_title(
-            chat_id, result.target_id, result.target_title
-        )
-        self.titles_renderer.send_stolen_title(
-            result,
-            chat_id,
-            message.id,
-            actor_title_are_set=tg_actor_title == result.actor_title,
-            target_title_are_set=tg_target_title == result.target_title,
-        )
-
-    def handle_show_titles_bag(
-        self, call: CallbackQuery, page: int, page_size: int = 9
-    ):
-        message = call.message
-        user_id = call.from_user.id
-        chat_id = message.chat.id
-        titles_bag = self.titles_service.handle_show_titles_bag(
-            chat_id, user_id, page, page_size
-        )
-        self.titles_renderer.send_titles_bag(titles_bag, chat_id, message.id, user_id)
-
-    def handle_swap_title(self, call: CallbackQuery, title_bag_id: int):
-        message = call.message
-        user_id = call.from_user.id
-        chat_id = message.chat.id
-        result = self.titles_service.handle_swap_title(chat_id, user_id, title_bag_id)
-        if not result.changed:
-            self.titles_renderer.send_swap_failed(result.title, chat_id, message.id)
-            return
-        tg_title = self.bot_service.set_title(chat_id, user_id, result.title)
-        self.titles_renderer.send_swap_success(
-            result.title, chat_id, message.id, user_id, are_set=result.title == tg_title
-        )
-
-    def dispatch_titles_callback(self, call: CallbackQuery):
-        payload = parse_json(call.data)
-        action_value = payload.get(Field.ACTION_TYPE.value)
-        action = Action._value2member_map_.get(action_value)
-        callback_payload = CallBackPayload(
-            action=action if isinstance(action, Action) else None,
-            user_id=extract_field(payload, Field.USER_ID),
-            dice_value=extract_field(payload, Field.DICE_VALUE),
-            page=extract_field(payload, Field.PAGE),
-            target_id=extract_field(payload, Field.TARGET_USER_ID),
-            title_bag_id=extract_field(payload, Field.TITLE_BAG_ID),
-        )
-        message = call.message
-        user_id = call.from_user.id
-        chat_id = message.chat.id
-        if user_id != callback_payload.user_id:
-            self.bot_service.answer_callback_query(
-                "Эти кнопки были не для тебя!", call.id
-            )
-            return
-        if not self.try_sync_titles(chat_id, message.id, user_id):
+        db_title = self._titles_service.get_user_title(ctx.chat_id, ctx.user_id)
+        if not self.try_sync_titles(db_title, ctx):
+            response = self._response_factory.please_set_title(db_title)
+            self._renderer.edit(response, ctx)
             return
         match callback_payload.action:
             case Action.ROLL_RANDOM_D6:
-                self.handle_random_dice_roll(call)
+                self._handle_random_dice_roll(ctx)
             case Action.ROLL_D6:
-                self.handle_dice_roll(call, callback_payload.dice_value)
+                self._handle_dice_roll(ctx, callback_payload.dice_value)
             case Action.OPEN_RENAME_MENU:
-                self.handle_back_to_rename_menu(call)
+                self._handle_back_to_rename_menu(ctx)
             case Action.OPEN_STEAL_MENU:
-                self.show_steal_menu(call, callback_payload.page)
+                self._show_steal_menu(ctx, callback_payload.page)
             case Action.STEAL_TITLE:
-                self.handle_steal(call, callback_payload.target_id)
+                self._handle_steal(
+                    ctx, callback_payload.target_id, callback_payload.title_bag_id
+                )
             case Action.OPEN_TITLES_BAG:
-                self.handle_show_titles_bag(call, callback_payload.page)
+                self._handle_show_titles_bag(ctx, callback_payload.page)
             case Action.SET_TITLE_BAG:
-                self.handle_swap_title(call, callback_payload.title_bag_id)
+                self._handle_swap_title(ctx, callback_payload.title_bag_id)
 
-    def has_titles_payload(self, call: CallbackQuery) -> bool:
-        payload = parse_json(call.data)
-        return payload.get(Field.ACTION_TYPE.value) in self._valid_payload_actions
+    def _set_title(self, title_changed: TitleChanged, ctx: UserContext) -> Response:
+        are_set = title_changed.changed and (
+            self._user_service.set_title(ctx, title_changed.title)
+            == title_changed.title
+        )
+        return self._response_factory.title_changed(
+            ctx.chat_id, ctx.user_id, title_changed, are_set
+        )
+
+    @_require_daily_action
+    def _handle_random_dice_roll(self, ctx: UserContext):
+        success = self._roll_service.roll_random_dice(ctx)
+        title_changed = self._titles_service.handle_roll(
+            ctx.chat_id, ctx.user_id, success
+        )
+        response = self._set_title(title_changed, ctx)
+        self._renderer.edit_later(response, 5, ctx)
+
+    @_require_daily_action
+    def _handle_dice_roll(self, ctx: UserContext, dice_value: int):
+        success = self._roll_service.roll_dice(dice_value, ctx)
+        title_changed = self._titles_service.handle_roll(
+            ctx.chat_id, ctx.user_id, success
+        )
+        response = self._set_title(title_changed, ctx)
+        self._renderer.edit_later(response, 5, ctx)
+
+    @_require_daily_action
+    def _handle_steal(self, ctx: UserContext, target_id: int, title_id: int):
+        if not self._titles_service.is_valid_title(ctx.chat_id, target_id, title_id):
+            response = self._response_factory.title_invalid()
+            self._renderer.edit(response, ctx)
+            return
+        success = self._roll_service.roll_random_dice(ctx)
+        result = self._titles_service.handle_steal(
+            ctx.chat_id, ctx.user_id, title_id, success
+        )
+        if not result.changed:
+            actor_title_are_set, target_title_are_set = None, None
+        else:
+            actor_title_are_set = result.actor_title == self._user_service.set_title(
+                replace(ctx, user_id=result.actor_id), result.actor_title
+            )
+            target_title_are_set = result.target_title == self._user_service.set_title(
+                replace(ctx, user_id=result.target_id), result.target_title
+            )
+        response = self._response_factory.title_stolen(
+            ctx.chat_id,
+            result,
+            actor_title_are_set=actor_title_are_set,
+            target_title_are_set=target_title_are_set,
+        )
+        self._renderer.edit_later(response, 5, ctx)
+
+    def _handle_back_to_rename_menu(self, ctx: UserContext):
+        menu = self._titles_service.show_rename_menu(ctx.chat_id, ctx.user_id)
+        response = self._response_factory.rename_menu(ctx.user_id, menu)
+        self._renderer.edit(response, ctx)
+
+    def _show_steal_menu(self, ctx: UserContext, page: int, page_size: int = 9):
+        menu = self._titles_service.show_steal_menu(
+            ctx.chat_id, ctx.user_id, page, page_size
+        )
+        if isinstance(menu, RenameMenu):
+            response = self._response_factory.rename_menu(ctx.user_id, menu)
+            self._renderer.edit(response, ctx)
+            return
+        users = {
+            user_id: self._user_service.get_username(menu.chat_id, user_id)
+            for user_id in {info.user_id for info in menu.titles}
+        }
+        menu = replace(
+            menu,
+            titles=[
+                replace(info, username=users[info.user_id]) for info in menu.titles
+            ],
+        )
+        response = self._response_factory.steal_menu(ctx.user_id, menu)
+        self._renderer.edit(response, ctx)
+
+    def _handle_show_titles_bag(self, ctx: UserContext, page: int, page_size: int = 9):
+        titles_bag = self._titles_service.handle_show_titles_bag(
+            ctx.chat_id, ctx.user_id, page, page_size
+        )
+        menu = titles_bag_to_view(titles_bag)
+        response = self._response_factory.inventory(ctx.user_id, menu)
+        self._renderer.edit(response, ctx)
+
+    def _handle_swap_title(self, ctx: UserContext, title_bag_id: int):
+        result = self._titles_service.handle_swap_title(
+            ctx.chat_id, ctx.user_id, title_bag_id
+        )
+        tg_title = (
+            self._user_service.set_title(ctx, result.title) if result.changed else None
+        )
+        response = self._response_factory.inventory_swap(
+            ctx.chat_id, ctx.user_id, result, are_set=result.title == tg_title
+        )
+        self._renderer.edit(response, ctx)

@@ -28,7 +28,6 @@ class CaptchaReader:
                 attempts=validate.get("attempts", 5),
                 bar_length=validate.get("bar_length", 20),
             ),
-            content_types=captcha_properties.get("content_types", ["text"]),
             greeting_message=(
                 self._section.get(
                     "welcome_message_for_new_members", "Добро пожаловать в чат!"

@@ -2,22 +2,21 @@ import datetime
 from functools import wraps
 import json
 import logging
-from typing import Callable, ParamSpec, TypeVar
+from typing import Callable, TypeVar
 
 from vasiniyo_chat_bot.telegram.dto import Field
 
-P = ParamSpec("P")
-R = TypeVar("R")
-
 logger = logging.getLogger(__name__)
+
+F = TypeVar("F", bound=Callable[..., object])
 
 
 def safe_wrapper(
-    default: R | None = None, message: str = "Exception occurred"
-) -> Callable[[Callable[P, R]], Callable[P, R | None]]:
-    def decorator(func: Callable[P, R]) -> Callable[P, R | None]:
+    default: object, message: str = "Exception occurred"
+) -> Callable[[F], F]:
+    def decorator(func: F) -> F:
         @wraps(func)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R | None:
+        def wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
             except:

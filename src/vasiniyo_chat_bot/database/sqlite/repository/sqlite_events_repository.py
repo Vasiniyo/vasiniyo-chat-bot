@@ -14,26 +14,26 @@ from vasiniyo_chat_bot.module.play.events_repository import EventsRepository
 class SqliteEventsRepository(SqliteRepository, EventsRepository):
     def __init__(self, eventsDao: EventsDao, settings: SqliteDatabaseSettings):
         super().__init__(settings)
-        self.eventsDao = eventsDao
+        self._eventsDao = eventsDao
 
     def insert_winner(self, chat_id: int, user_id: int, event_id: int) -> int:
         return self.transaction(
-            lambda conn: self.eventsDao.save(conn, chat_id, user_id, event_id)
+            lambda conn: self._eventsDao.save(conn, chat_id, user_id, event_id)
         ).winner_user_id
 
     def get_last_winner(self, chat_id: int, event_id: int) -> int | None:
         return self.transaction(
-            lambda conn: self.eventsDao.get_last_winner(conn, chat_id, event_id)
+            lambda conn: self._eventsDao.get_last_winner(conn, chat_id, event_id)
         )
 
     def is_day_passed(self, chat_id: int, event_id: int) -> bool:
         return self.transaction(
-            lambda conn: self.eventsDao.is_day_passed(conn, chat_id, event_id)
+            lambda conn: self._eventsDao.is_day_passed(conn, chat_id, event_id)
         )
 
     def get_leaderboard(self, chat_id: int, event_id: int, limit: int) -> Leaderboard:
         def _tx(conn: Connection) -> list[tuple[int, int]]:
-            return self.eventsDao.fetch_top(conn, chat_id, event_id, limit)
+            return self._eventsDao.fetch_top(conn, chat_id, event_id, limit)
 
         return Leaderboard(
             chat_id=chat_id,

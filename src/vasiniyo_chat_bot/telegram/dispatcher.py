@@ -10,7 +10,7 @@ from vasiniyo_chat_bot.database.sqlite.dao import (
     EventsDao,
     LikesDao,
     TitlesBagDAO,
-    TitlesDAO,
+    TitlesStatesDAO,
 )
 from vasiniyo_chat_bot.database.sqlite.repository.dto import SqliteDatabaseSettings
 from vasiniyo_chat_bot.database.sqlite.repository.sqlite_events_repository import (
@@ -29,7 +29,6 @@ from vasiniyo_chat_bot.module.daily_size.daily_size_service import DailySizeServ
 from vasiniyo_chat_bot.module.drink_or_not.drink_service import DrinkService
 from vasiniyo_chat_bot.module.help.command_key import CommandKey
 from vasiniyo_chat_bot.module.likes.like_service import LikeService
-from vasiniyo_chat_bot.module.play.event_player_repository import EventPlayersRepository
 from vasiniyo_chat_bot.module.play.image_service import ImageService
 from vasiniyo_chat_bot.module.play.play_service import PlayService
 from vasiniyo_chat_bot.module.reply.reply_service import ReplyService
@@ -51,18 +50,53 @@ from vasiniyo_chat_bot.telegram.controller import (
 from vasiniyo_chat_bot.telegram.controller.daily_size_controller import (
     DailySizeController,
 )
-from vasiniyo_chat_bot.telegram.filter import Filter
-from vasiniyo_chat_bot.telegram.renderer import (
-    AnimeRenderer,
-    CaptchaRenderer,
-    DrinkRenderer,
-    HelpRenderer,
-    LikeRenderer,
-    PlayRenderer,
-    ReplyRenderer,
-    TitlesRenderer,
+from vasiniyo_chat_bot.telegram.dto import (
+    CallbackContext,
+    InlineCallbackContext,
+    MessageContext,
+    UserContext,
 )
-from vasiniyo_chat_bot.telegram.renderer.daily_size_renderer import DailySizeRenderer
+from vasiniyo_chat_bot.telegram.filter import Filter
+from vasiniyo_chat_bot.telegram.keyboard.anime_keyboard_factory import (
+    AnimeKeyboardFactory,
+)
+from vasiniyo_chat_bot.telegram.keyboard.captcha_keyboard_factory import (
+    CaptchaKeyboardFactory,
+)
+from vasiniyo_chat_bot.telegram.keyboard.titles_keyboard_factory import (
+    TitlesKeyboardFactory,
+)
+from vasiniyo_chat_bot.telegram.payload.anime_payload_factory import AnimePayloadFactory
+from vasiniyo_chat_bot.telegram.payload.captcha_payload_factory import (
+    CaptchaPayloadFactory,
+)
+from vasiniyo_chat_bot.telegram.payload.titles_payload_factory import (
+    TitlesPayloadFactory,
+)
+from vasiniyo_chat_bot.telegram.renderer import (
+    AnimeResponseFactory,
+    CaptchaResponseFactory,
+    HelpResponseFactory,
+    LikeResponseFactory,
+    PlayResponseFactory,
+    ReplyResponseFactory,
+)
+from vasiniyo_chat_bot.telegram.renderer.daily_size_response_factory import (
+    DailySizeResponseFactory,
+)
+from vasiniyo_chat_bot.telegram.renderer.drink_response_factory import (
+    DrinkResponseFactory,
+)
+from vasiniyo_chat_bot.telegram.renderer.renderer import TelegramRenderer
+from vasiniyo_chat_bot.telegram.renderer.titles_response_factory import (
+    TitlesResponseFactory,
+)
+from vasiniyo_chat_bot.telegram.service.markdown_v2_service import MarkdownV2Service
+from vasiniyo_chat_bot.telegram.service.telegram_event_players_service import (
+    TelegramEventPlayersService,
+)
+from vasiniyo_chat_bot.telegram.service.telegram_roll_service import TelegramRollService
+from vasiniyo_chat_bot.telegram.service.telegram_user_service import TelegramUserService
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +104,7 @@ logger = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class Command:
     name: str
-    handler: Callable[[Message], None]
+    handler: Callable[[MessageContext], None]
 
 
 class MessageHandler:
@@ -80,18 +114,51 @@ class MessageHandler:
     def __init__(
         self,
         allowed_chats: list[str],
-        handler: Callable[[Message], None],
+        handler: Callable[[MessageContext], None],
         validator: Filter[Message] = None,
         content_types: list[str] = None,
     ) -> None:
         in_allowed_chat = Filter(
             lambda m: "*" in allowed_chats or str(m.chat.id) in allowed_chats
         )
-        self.handler = safe_wrapper()(handler)
+        self.handler = safe_wrapper(default=None)(self._to_handler(handler))
         self.kwargs = {
             "func": in_allowed_chat & (validator or Filter(lambda _: True)),
             "content_types": list(content_types or []) or None,
         }
+
+    @staticmethod
+    def _to_handler(
+        handler: Callable[[MessageContext], None],
+    ) -> Callable[[Message], None]:
+        def inner(message: Message):
+            users = message.new_chat_members or [message.from_user]
+            for user in users:
+                if user.is_bot:
+                    logger.info(
+                        "new_chat_members",
+                        extra={
+                            "user_id": user.user_id,
+                            "details": "user is bot, skipping",
+                        },
+                    )
+                    continue
+                handler(
+                    MessageContext(
+                        user_id=user.id,
+                        chat_id=message.chat.id,
+                        message_id=message.id,
+                        prev=(
+                            _message_to_user_context(message.reply_to_message)
+                            if message.reply_to_message
+                            else None
+                        ),
+                        file_id=message.sticker.file_id if message.sticker else None,
+                        text=message.text,
+                    )
+                )
+
+        return inner
 
 
 class CommandHandler(MessageHandler):
@@ -105,16 +172,16 @@ class CommandHandler(MessageHandler):
         )
 
     def _get_handler(self, command: Command):
-        def inner(message: Message):
+        def inner(ctx: MessageContext):
             logger.info(
                 "handle_command",
                 extra={
                     "command": self._command.name,
-                    "chat_id": message.chat.id,
-                    "user_id": message.from_user.id,
+                    "chat_id": ctx.chat_id,
+                    "user_id": ctx.user_id,
                 },
             )
-            command.handler(message)
+            command.handler(ctx)
 
         return inner
 
@@ -134,7 +201,7 @@ class StickerHandler(MessageHandler):
     def __init__(
         self,
         allowed_chats: list[str],
-        handler: Callable[[Message], None],
+        handler: Callable[[MessageContext], None],
         validator: Filter[Message] = None,
     ) -> None:
         super().__init__(allowed_chats, handler, validator, ["sticker"])
@@ -144,7 +211,7 @@ class NewMemberHandler(MessageHandler):
     def __init__(
         self,
         allowed_chats: list[str],
-        handler: Callable[[Message], None],
+        handler: Callable[[UserContext], None],
         validator: Filter[Message] = None,
     ) -> None:
         super().__init__(allowed_chats, handler, validator, ["new_chat_members"])
@@ -157,24 +224,62 @@ class QueryHandler:
     def __init__(
         self,
         allowed_chats: list[str],
-        handler: Callable[[CallbackQuery], None],
+        handler: Callable[[CallbackContext], None],
         validator: Filter[CallbackQuery],
     ) -> None:
         in_allowed_chat = Filter(
             lambda call: "*" in allowed_chats
             or str(call.message.chat.id) in allowed_chats
         )
-        self.handler = safe_wrapper()(handler)
+        self.handler = safe_wrapper(default=None)(self._to_handler(handler))
         self.kwargs = {"func": in_allowed_chat & validator}
+
+    @staticmethod
+    def _to_handler(
+        handler: Callable[[CallbackContext], None],
+    ) -> Callable[[CallbackQuery], None]:
+        return lambda call: handler(
+            CallbackContext(
+                user_id=call.from_user.id,
+                chat_id=call.message.chat.id,
+                message_id=call.message.id,
+                data=call.data,
+                callback_id=call.id,
+            )
+        )
 
 
 class InlineQueryHandler:
     handler: Callable[[InlineQuery], None]
     kwargs: dict
 
-    def __init__(self, handler: Callable[[InlineQuery], None]) -> None:
-        self.handler = safe_wrapper()(handler)
+    def __init__(self, handler: Callable[[InlineCallbackContext], None]) -> None:
+        self.handler = safe_wrapper(default=None)(self._to_handler(handler))
         self.kwargs = {"func": lambda q: q.query == ""}
+
+    @staticmethod
+    def _to_handler(
+        handler: Callable[[InlineCallbackContext], None],
+    ) -> Callable[[InlineQuery], None]:
+        return lambda call: handler(
+            InlineCallbackContext(
+                user_id=call.from_user.id, query=call.query, callback_id=call.id
+            )
+        )
+
+
+def _call_to_user_context(call: CallbackQuery) -> UserContext:
+    return UserContext(
+        user_id=call.from_user.id,
+        chat_id=call.message.chat.id,
+        message_id=call.message.id,
+    )
+
+
+def _message_to_user_context(message: Message) -> UserContext:
+    return UserContext(
+        user_id=message.from_user.id, chat_id=message.chat.id, message_id=message.id
+    )
 
 
 class Controller:
@@ -222,7 +327,9 @@ class Controller:
                 QueryHandler(
                     self._allowed_chats,
                     anime_controller.dispatch_anime_callback,
-                    Filter(anime_controller.has_anime_payload),
+                    Filter(
+                        lambda call: AnimePayloadFactory.has_anime_payload(call.data)
+                    ),
                 )
             )
         if titles_controller:
@@ -233,7 +340,9 @@ class Controller:
                 QueryHandler(
                     self._allowed_chats,
                     titles_controller.dispatch_titles_callback,
-                    Filter(titles_controller.has_titles_payload),
+                    Filter(
+                        lambda call: TitlesPayloadFactory.has_titles_payload(call.data)
+                    ),
                 )
             )
         if play_controller:
@@ -303,7 +412,18 @@ class Controller:
                 MessageHandler(
                     self._allowed_chats,
                     captcha_controller.handle_verify_captcha,
-                    Filter(captcha_controller.are_captcha_user),
+                    Filter(
+                        lambda message: captcha_controller.is_captcha_user(
+                            _message_to_user_context(message)
+                        )
+                    ),
+                    content_types=[
+                        # fmt: off
+                        "animation", "audio", "contact", "dice",
+                        "document", "location", "photo", "text",
+                        "sticker", "video", "video_note", "voice"
+                        # fmt: on
+                    ],
                 ),
                 NewMemberHandler(
                     self._allowed_chats, captcha_controller.handle_new_user
@@ -313,18 +433,28 @@ class Controller:
                 QueryHandler(
                     self._allowed_chats,
                     captcha_controller.handle_captcha_button_press,
-                    captcha_controller.is_captcha_user
-                    and Filter(captcha_controller.has_captcha_payload),
+                    Filter(
+                        lambda call: captcha_controller.is_captcha_user(
+                            _call_to_user_context(call)
+                        )
+                    )
+                    and Filter(
+                        lambda call: CaptchaPayloadFactory.has_captcha_payload(
+                            call.data
+                        )
+                    ),
                 )
             ]
         self.my_commands = {
-            command.name: help_controller.help_renderer.helps[command_key]
+            command.name: help_controller._response_factory.helps[command_key]
             for command_key, command in commands.items()
         }
 
 
 def init_controller(config: Config):
-    bot_service = BotService(config.bot_settings.bot)
+    bot_service = BotService(config.bot_settings.bot, MarkdownV2Service())
+    user_service = TelegramUserService(bot_service)
+    renderer = TelegramRenderer(bot_service)
     database_settings = config.database
     if not isinstance(database_settings, SqliteDatabaseSettings):
         raise NotImplementedError(
@@ -336,33 +466,37 @@ def init_controller(config: Config):
         "test" in config.bot_settings.mods,
     )
     controller.apply_controllers(
-        help_controller=HelpController(HelpRenderer(bot_service)),
+        help_controller=HelpController(HelpResponseFactory(), renderer),
         like_controller=(
             LikeController(
                 LikeService(SqliteLikesRepository(LikesDao(), database_settings)),
-                LikeRenderer(bot_service),
+                LikeResponseFactory(),
+                renderer,
             )
             if "like" in config.bot_settings.mods
             else None
         ),
         drink_controller=(
-            DrinkController(DrinkService(config.drinks), DrinkRenderer(bot_service))
+            DrinkController(
+                DrinkService(config.drinks), DrinkResponseFactory(), renderer
+            )
             if "drink" in config.bot_settings.mods
             else None
         ),
         daily_size_controller=(
             DailySizeController(
                 DailySizeService(config.daily_size_settings),
-                DailySizeRenderer(bot_service),
+                DailySizeResponseFactory(),
+                renderer,
             )
             if "daily_size" in config.bot_settings.mods
             else None
         ),
         anime_controller=(
             AnimeController(
-                bot_service,
                 AnimeService([AnilistAnimeProvider(), ShikimoriAnimeProvider()]),
-                AnimeRenderer(bot_service),
+                AnimeResponseFactory(AnimeKeyboardFactory(AnimePayloadFactory())),
+                renderer,
             )
             if "anime" in config.bot_settings.mods
             else None
@@ -372,11 +506,13 @@ def init_controller(config: Config):
                 TitlesService(
                     TitlesProvider(config.custom_titles),
                     SqliteTitlesRepository(
-                        TitlesDAO(), TitlesBagDAO(), database_settings
+                        TitlesStatesDAO(), TitlesBagDAO(), database_settings
                     ),
                 ),
-                bot_service,
-                TitlesRenderer(bot_service),
+                TelegramRollService(bot_service),
+                user_service,
+                TitlesResponseFactory(TitlesKeyboardFactory(TitlesPayloadFactory())),
+                renderer,
             )
             if "titles" in config.bot_settings.mods
             else None
@@ -384,16 +520,17 @@ def init_controller(config: Config):
         play_controller=(
             PlayController(
                 PlayService(
-                    EventPlayersRepository(bot_service),
+                    TelegramEventPlayersService(bot_service),
                     SqliteEventsRepository(EventsDao(), database_settings),
                     config.event.play_categories,
                 ),
-                PlayRenderer(
-                    bot_service,
+                PlayResponseFactory(
+                    user_service,
                     ImageService(
                         config.event.default_winner_avatar, config.event.winner_pictures
                     ),
                 ),
+                renderer,
             )
             if "play" in config.bot_settings.mods
             else None
@@ -403,16 +540,21 @@ def init_controller(config: Config):
                 ReplyService(
                     long_messages=config.long_message, triggers=config.trigger_replies
                 ),
-                ReplyRenderer(bot_service),
+                ReplyResponseFactory(),
+                renderer,
             )
             if "reply" in config.bot_settings.mods
             else None
         ),
         captcha_controller=(
             CaptchaController(
+                user_service,
                 CaptchaService(config.captcha_properties, CaptchaRepository()),
-                bot_service,
-                CaptchaRenderer(bot_service, config.captcha_properties),
+                CaptchaResponseFactory(
+                    config.captcha_properties,
+                    CaptchaKeyboardFactory(CaptchaPayloadFactory()),
+                ),
+                renderer,
             )
             if "captcha" in config.bot_settings.mods
             else None
