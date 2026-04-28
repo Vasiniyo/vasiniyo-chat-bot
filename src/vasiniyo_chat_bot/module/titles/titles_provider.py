@@ -31,7 +31,7 @@ class TitlesProvider:
                 adj = f"{adj_base}{adj_group.plural_ending}"
                 match random.randint(0, 2):
                     case 0:
-                        noun_group = random.choice(self._nouns.neuter)
+                        noun_group = random.choice(self._nouns.male)
                         noun_base = random.choice(noun_group.base)
                         noun = f"{noun_base}{noun_group.plural_ending}"
                     case 1:
@@ -39,7 +39,7 @@ class TitlesProvider:
                         noun_base = random.choice(noun_group.base)
                         noun = f"{noun_base}{noun_group.plural_ending}"
                     case _:
-                        noun_group = random.choice(self._nouns.female)
+                        noun_group = random.choice(self._nouns.neuter)
                         noun_base = random.choice(noun_group.base)
                         noun = f"{noun_base}{noun_group.plural_ending}"
         title = f"{adj} {noun}"
