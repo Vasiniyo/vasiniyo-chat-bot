@@ -115,6 +115,16 @@ class TitlesController:
                 self._handle_show_titles_bag(ctx, callback_payload.page)
             case Action.SET_TITLE_BAG:
                 self._handle_swap_title(ctx, callback_payload.title_bag_id)
+            case Action.GIFT_RECIPIENTS_MENU:
+                self._handle_show_recipients_menu(ctx, callback_payload.page)
+            case Action.GIFT_TITLE_MENU:
+                self._handle_show_gift_title_menu(
+                    ctx, callback_payload.target_id, callback_payload.page
+                )
+            case Action.GIVE_TITLE:
+                self._give_title(
+                    ctx, callback_payload.target_id, callback_payload.title_bag_id
+                )
 
     def _set_title(self, title_changed: TitleChanged, ctx: UserContext) -> Response:
         are_set = title_changed.changed and (
@@ -175,7 +185,7 @@ class TitlesController:
         response = self._response_factory.rename_menu(ctx.user_id, menu)
         self._renderer.edit(response, ctx)
 
-    def _show_steal_menu(self, ctx: UserContext, page: int, page_size: int = 9):
+    def _show_steal_menu(self, ctx: UserContext, page: int, page_size: int = 21):
         menu = self._titles_service.show_steal_menu(
             ctx.chat_id, ctx.user_id, page, page_size
         )
@@ -196,7 +206,7 @@ class TitlesController:
         response = self._response_factory.steal_menu(ctx.user_id, menu)
         self._renderer.edit(response, ctx)
 
-    def _handle_show_titles_bag(self, ctx: UserContext, page: int, page_size: int = 9):
+    def _handle_show_titles_bag(self, ctx: UserContext, page: int, page_size: int = 21):
         titles_bag = self._titles_service.handle_show_titles_bag(
             ctx.chat_id, ctx.user_id, page, page_size
         )
@@ -214,4 +224,38 @@ class TitlesController:
         response = self._response_factory.inventory_swap(
             ctx.chat_id, ctx.user_id, result, are_set=result.title == tg_title
         )
+        self._renderer.edit(response, ctx)
+
+    def _handle_show_recipients_menu(self, ctx: UserContext, page: int):
+        menu = self._titles_service.get_gift_recipients(
+            ctx.chat_id, ctx.user_id, page, 21
+        )
+        users = {
+            user_id: self._user_service.get_username(menu.chat_id, user_id)
+            for user_id in {info.user_id for info in menu.recipients}
+        }
+        menu = replace(
+            menu,
+            recipients=[
+                replace(info, username=users[info.user_id]) for info in menu.recipients
+            ],
+        )
+        response = self._response_factory.gift_recipients_menu(ctx.user_id, menu)
+        self._renderer.edit(response, ctx)
+
+    def _handle_show_gift_title_menu(self, ctx: UserContext, target_id: int, page: int):
+        menu = self._titles_service.get_gift_titles(
+            ctx.chat_id, ctx.user_id, target_id, page, 21
+        )
+        response = self._response_factory.gift_title_menu(ctx.user_id, menu)
+        self._renderer.edit(response, ctx)
+
+    def _give_title(self, ctx: UserContext, target_id: int, title_id: int):
+        result = self._titles_service.give_title(ctx.chat_id, target_id, title_id)
+        if result.changed:
+            response = self._response_factory.title_given(
+                ctx.chat_id, ctx.user_id, target_id, result.title
+            )
+        else:
+            response = self._response_factory.title_invalid()
         self._renderer.edit(response, ctx)

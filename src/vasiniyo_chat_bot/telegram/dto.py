@@ -17,6 +17,9 @@ class Action(Enum):
     SET_TITLE_BAG = "6"
     CAPTCHA_UPDATE = "7"
     ANIME = "8"
+    GIFT_RECIPIENTS_MENU = "9"
+    GIFT_TITLE_MENU = "a"
+    GIVE_TITLE = "b"
 
 
 class Field(Enum):

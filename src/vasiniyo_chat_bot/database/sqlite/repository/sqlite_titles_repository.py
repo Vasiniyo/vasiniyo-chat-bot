@@ -184,3 +184,28 @@ class SqliteTitlesRepository(SqliteRepository, TitlesRepository):
             return entity and entity.chat_id == chat_id and entity.user_id == user_id
 
         return self.transaction(_tx)
+
+    def get_users_by_chat(self, chat_id) -> set[int]:
+        def _tx(conn: Connection) -> set[int]:
+            return {
+                entity.user_id
+                for entity in self._titles_bag_dao.get_by_chat(conn, chat_id)
+            }
+
+        return self.transaction(_tx)
+
+    def set_inventory(
+        self, chat_id: int, user_id: int, title_bag_id: int
+    ) -> str | None:
+        def _tx(conn: Connection) -> str | None:
+            entity = self._titles_bag_dao.find_by_id(conn, title_bag_id)
+            if not entity:
+                return None
+            if entity.chat_id != chat_id or not entity.is_inventory:
+                return None
+            self._titles_bag_dao.save(
+                conn, replace(entity, user_id=user_id, is_inventory=True)
+            )
+            return entity.user_title
+
+        return self.transaction(_tx)
