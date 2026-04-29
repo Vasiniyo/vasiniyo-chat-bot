@@ -228,17 +228,13 @@ class TitlesController:
 
     def _handle_show_recipients_menu(self, ctx: UserContext, page: int):
         menu = self._titles_service.get_gift_recipients(
-            ctx.chat_id, ctx.user_id, page, 21
-        )
-        users = {
-            user_id: self._user_service.get_username(menu.chat_id, user_id)
-            for user_id in {info.user_id for info in menu.recipients}
-        }
-        menu = replace(
-            menu,
-            recipients=[
-                replace(info, username=users[info.user_id]) for info in menu.recipients
-            ],
+            ctx.chat_id,
+            ctx.user_id,
+            page,
+            21,
+            lambda uid: self._user_service.get_username(
+                ctx.chat_id, uid, is_active=True
+            ),
         )
         response = self._response_factory.gift_recipients_menu(ctx.user_id, menu)
         self._renderer.edit(response, ctx)

@@ -94,7 +94,9 @@ class CaptchaController:
             cancel_task(session.task_id, silently=True)
             response = self._response_factory.passed_captcha()
             self._captcha_service.remove_user(ctx.chat_id, ctx.user_id)
-            self._renderer.delete(ctx)
+            self._renderer.delete(
+                UserContext(ctx.user_id, ctx.chat_id, session.message_id)
+            )
             self._renderer.send(response, replace(ctx, message_id=session.message_id))
 
     def handle_captcha_failure(self, ctx: UserContext, reason: str):

@@ -1,3 +1,5 @@
+from typing import Callable
+
 from vasiniyo_chat_bot.module.titles.dto import (
     GiftRecipientInfo,
     GiftRecipientsMenu,
@@ -139,14 +141,23 @@ class TitlesService:
         return TitleChanged(swapped_title, changed=swapped_title is not None)
 
     def get_gift_recipients(
-        self, chat_id: int, user_id: int, page: int, page_size: int
+        self,
+        chat_id: int,
+        user_id: int,
+        page: int,
+        page_size: int,
+        get_username: Callable[[int], str],
     ) -> GiftRecipientsMenu:
         page = page if page > 0 else 0
+        users = {
+            user_id: get_username(user_id)
+            for user_id in set(self._titles_repository.get_users_by_chat(chat_id))
+        }
         recipients = sorted(
             [
-                GiftRecipientInfo(uid)
-                for uid in self._titles_repository.get_users_by_chat(chat_id)
-                if uid != user_id
+                GiftRecipientInfo(uid, username)
+                for uid, username in users.items()
+                if uid != user_id and username
             ],
             key=lambda row: row.user_id,
         )
