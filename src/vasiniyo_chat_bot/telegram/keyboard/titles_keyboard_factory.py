@@ -39,9 +39,10 @@ class TitlesKeyboardFactory:
                 ]
             )
         if rename_menu.random_d6:
+            title = f" | {rename_menu.title}" if rename_menu.title else ""
             markup.add(
                 InlineKeyboardButton(
-                    "Мне повезёт",
+                    f"Мне повезёт{title}",
                     callback_data=self._payload_factory.random_d6(user_id),
                 )
             )
