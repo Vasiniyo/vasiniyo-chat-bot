@@ -74,7 +74,6 @@ class TitlesKeyboardFactory:
         bts = defaultdict(list[TitleInfo])
         for item in steal_menu.titles:
             bts[item.user_id].append(item)
-        logging.info(bts)
         for uid, arr in bts.items():
             groups = [arr[i : i + 2] for i in range(0, len(arr), 3)]
             if len(groups) == 1 and len(groups[0]) == 1:

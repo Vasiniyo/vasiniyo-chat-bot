@@ -137,10 +137,7 @@ class MessageHandler:
                 if user.is_bot:
                     logger.info(
                         "new_chat_members",
-                        extra={
-                            "user_id": user.user_id,
-                            "details": "user is bot, skipping",
-                        },
+                        extra={"user_id": user.id, "details": "user is bot, skipping"},
                     )
                     continue
                 handler(
@@ -217,6 +214,16 @@ class NewMemberHandler(MessageHandler):
         super().__init__(allowed_chats, handler, validator, ["new_chat_members"])
 
 
+class LeftChatMemberHandler(MessageHandler):
+    def __init__(
+        self,
+        allowed_chats: list[str],
+        handler: Callable[[UserContext], None],
+        validator: Filter[Message] = None,
+    ) -> None:
+        super().__init__(allowed_chats, handler, validator, ["left_chat_member"])
+
+
 class QueryHandler:
     handler: Callable[[CallbackQuery], None]
     kwargs: dict
@@ -289,9 +296,14 @@ class Controller:
     inline: InlineQueryHandler = None
 
     def __init__(
-        self, bot_service: BotService, allowed_chats: list[str], enabled_test_mode
+        self,
+        bot_service: BotService,
+        user_service: TelegramUserService,
+        allowed_chats: list[str],
+        enabled_test_mode,
     ):
         self._bot_service = bot_service
+        self._user_service = user_service
         self._allowed_chats = allowed_chats
         self._enabled_test_mode = enabled_test_mode
 
@@ -424,10 +436,7 @@ class Controller:
                         "sticker", "video", "video_note", "voice"
                         # fmt: on
                     ],
-                ),
-                NewMemberHandler(
-                    self._allowed_chats, captcha_controller.handle_new_user
-                ),
+                )
             ]
             self.callbacks[:0] = [
                 QueryHandler(
@@ -445,6 +454,25 @@ class Controller:
                     ),
                 )
             ]
+
+        def invalidate_user_cache(func: Callable[[UserContext], None] = lambda _: None):
+            def handler(ctx: UserContext):
+                self._user_service.invalidate_cache(ctx.chat_id, ctx.user_id)
+                func(ctx)
+
+            return handler
+
+        self.messages[:0] = [
+            NewMemberHandler(
+                self._allowed_chats,
+                invalidate_user_cache(
+                    captcha_controller.handle_new_user
+                    if captcha_controller
+                    else lambda _: None
+                ),
+            ),
+            LeftChatMemberHandler(self._allowed_chats, invalidate_user_cache()),
+        ]
         self.my_commands = {
             command.name: help_controller._response_factory.helps[command_key]
             for command_key, command in commands.items()
@@ -462,6 +490,7 @@ def init_controller(config: Config):
         )
     controller = Controller(
         bot_service,
+        user_service,
         config.bot_settings.allowed_chats,
         "test" in config.bot_settings.mods,
     )
