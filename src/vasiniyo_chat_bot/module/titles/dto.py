@@ -32,6 +32,7 @@ class CustomTitles:
 
 @dataclass(frozen=True)
 class RenameMenu:
+    title: str | None
     d6: bool
     random_d6: bool
     steal_menu: bool

@@ -11,9 +11,12 @@ from vasiniyo_chat_bot.module.titles.dto import (
 )
 from vasiniyo_chat_bot.module.titles.titles_provider import TitlesProvider
 from vasiniyo_chat_bot.module.titles.titles_repository import TitlesRepository
+from vasiniyo_chat_bot.safely_bot_utils import daily_hash
 
 
 class TitlesService:
+    _rolling_titles = {}
+
     def __init__(
         self, titles_provider: TitlesProvider, titles_repository: TitlesRepository
     ):
@@ -24,16 +27,22 @@ class TitlesService:
         return self._titles_repository.find_user_title(chat_id, user_id)
 
     def rename(self, chat_id: int, user_id: int) -> TitleChanged | RenameMenu:
-        title = self._titles_provider.next_title()
+        title = self._get_next_title(chat_id, user_id)
         inited_title = self._titles_repository.init_title(chat_id, user_id, title)
         if inited_title:
+            self._remove_next_title(chat_id, user_id)
             return TitleChanged(title=title, changed=True)
         return self.show_rename_menu(chat_id, user_id)
 
     def show_rename_menu(self, chat_id: int, user_id: int) -> RenameMenu:
         if self.is_day_passed(chat_id, user_id):
-            return RenameMenu(d6=True, random_d6=True, steal_menu=True, titles_bag=True)
-        return RenameMenu(d6=False, random_d6=False, steal_menu=False, titles_bag=True)
+            title = self._get_next_title(chat_id, user_id)
+            return RenameMenu(
+                title=title, d6=True, random_d6=True, steal_menu=True, titles_bag=True
+            )
+        return RenameMenu(
+            title=None, d6=False, random_d6=False, steal_menu=False, titles_bag=True
+        )
 
     def show_steal_menu(
         self, chat_id: int, user_id: int, page: int, page_size: int
@@ -41,7 +50,7 @@ class TitlesService:
         page = page if page > 0 else 0
         if not self.is_day_passed(chat_id, user_id):
             return RenameMenu(
-                d6=False, random_d6=False, steal_menu=False, titles_bag=True
+                title=None, d6=False, random_d6=False, steal_menu=False, titles_bag=True
             )
         rows = list(self._titles_repository.get_user_titles(chat_id))
         counts = {}
@@ -95,8 +104,9 @@ class TitlesService:
 
     def handle_roll(self, chat_id: int, user_id: int, success: bool) -> TitleChanged:
         if success:
-            next_title = self._titles_provider.next_title()
+            next_title = self._get_next_title(chat_id, user_id)
             title = self._titles_repository.rotate_title(chat_id, user_id, next_title)
+            self._remove_next_title(chat_id, user_id)
         else:
             title = self._titles_repository.get_title_after_touch(chat_id, user_id)
         return TitleChanged(title=title, changed=success)
@@ -186,3 +196,12 @@ class TitlesService:
 
     def is_day_passed(self, chat_id: int, user_id: int) -> bool:
         return self._titles_repository.is_day_passed(chat_id, user_id)
+
+    def _get_next_title(self, chat_id: int, user_id: int):
+        key = daily_hash(chat_id + user_id)
+        if not self._rolling_titles.get(key):
+            self._rolling_titles[key] = self._titles_provider.next_title()
+        return self._rolling_titles[key]
+
+    def _remove_next_title(self, chat_id: int, user_id: int):
+        self._rolling_titles.pop(daily_hash(chat_id + user_id))

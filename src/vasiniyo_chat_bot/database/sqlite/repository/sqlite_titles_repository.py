@@ -126,6 +126,7 @@ class SqliteTitlesRepository(SqliteRepository, TitlesRepository):
                     is_inventory=False,
                 ),
             )
+            self._titles_states_dao.update_last_changing(conn, chat_id, user_id)
             return entity.user_title
 
         return self.transaction(_tx)
