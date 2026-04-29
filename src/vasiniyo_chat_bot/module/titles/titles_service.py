@@ -1,4 +1,7 @@
 from vasiniyo_chat_bot.module.titles.dto import (
+    GiftRecipientInfo,
+    GiftRecipientsMenu,
+    GiftTitlesMenu,
     RenameMenu,
     StealMenu,
     StealResult,
@@ -40,6 +43,10 @@ class TitlesService:
             return RenameMenu(
                 d6=False, random_d6=False, steal_menu=False, titles_bag=True
             )
+        rows = list(self._titles_repository.get_user_titles(chat_id))
+        counts = {}
+        for r in rows:
+            counts[r.user_id] = counts.get(r.user_id, 0) + 1
         titles = [
             TitleInfo(
                 id=row.id,
@@ -48,8 +55,13 @@ class TitlesService:
                 is_inventory=row.is_inventory,
             )
             for row in sorted(
-                self._titles_repository.get_user_titles(chat_id),
-                key=lambda row: (row.user_id, row.is_inventory, row.user_title),
+                rows,
+                key=lambda row: (
+                    -counts[row.user_id],
+                    row.user_id,
+                    row.is_inventory,
+                    row.user_title,
+                ),
             )
             if row.user_id != user_id
         ]
@@ -115,6 +127,59 @@ class TitlesService:
             chat_id, user_id, title_bag_id
         )
         return TitleChanged(swapped_title, changed=swapped_title is not None)
+
+    def get_gift_recipients(
+        self, chat_id: int, user_id: int, page: int, page_size: int
+    ) -> GiftRecipientsMenu:
+        page = page if page > 0 else 0
+        recipients = sorted(
+            [
+                GiftRecipientInfo(uid)
+                for uid in self._titles_repository.get_users_by_chat(chat_id)
+                if uid != user_id
+            ],
+            key=lambda row: row.user_id,
+        )
+        start_page = page * page_size
+        end_page = start_page + page_size
+        return GiftRecipientsMenu(
+            chat_id=chat_id,
+            recipients=recipients[start_page:end_page],
+            page=page,
+            has_prev_pages=page > 0,
+            has_more_pages=end_page < len(recipients),
+        )
+
+    def get_gift_titles(
+        self, chat_id: int, user_id: int, target_id: int, page: int, page_size: int
+    ) -> GiftTitlesMenu:
+        page = page if page > 0 else 0
+        titles = [
+            TitleInfo(
+                id=row.value[0],
+                user_id=row.value[1],
+                title=row.value[2],
+                is_inventory=True,
+            )
+            for row in sorted(
+                self._titles_repository.get_user_titles_bag(chat_id, user_id).rows,
+                key=lambda row: row.value[2],
+            )
+        ]
+        start_page = page * page_size
+        end_page = start_page + page_size
+        return GiftTitlesMenu(
+            chat_id=chat_id,
+            target_user_id=target_id,
+            titles=titles[start_page:end_page],
+            page=page,
+            has_prev_pages=page > 0,
+            has_more_pages=end_page < len(titles),
+        )
+
+    def give_title(self, chat_id: int, user_id: int, title_bag_id: int) -> TitleChanged:
+        title = self._titles_repository.set_inventory(chat_id, user_id, title_bag_id)
+        return TitleChanged(title, changed=title is not None)
 
     def is_valid_title(self, chat_id: int, user_id: int, title_bag_id: int) -> bool:
         return self._titles_repository.exists(chat_id, user_id, title_bag_id)

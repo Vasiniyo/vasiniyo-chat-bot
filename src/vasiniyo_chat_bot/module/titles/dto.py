@@ -77,3 +77,28 @@ class StealResult:
 class TitleChanged:
     title: str
     changed: bool
+
+
+@dataclass(frozen=True)
+class GiftRecipientInfo:
+    user_id: int
+    username: str | None = None
+
+
+@dataclass(frozen=True)
+class GiftRecipientsMenu:
+    chat_id: int
+    recipients: list[GiftRecipientInfo]
+    page: int
+    has_prev_pages: bool
+    has_more_pages: bool
+
+
+@dataclass(frozen=True)
+class GiftTitlesMenu:
+    chat_id: int
+    target_user_id: int
+    titles: list[TitleInfo]
+    page: int
+    has_prev_pages: bool
+    has_more_pages: bool

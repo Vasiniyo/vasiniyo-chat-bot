@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import json
+import logging
 
 from vasiniyo_chat_bot.safely_bot_utils import extract_field, parse_json
 from vasiniyo_chat_bot.telegram.dto import Action, Field
@@ -24,6 +25,9 @@ class TitlesPayloadFactory:
         Action.STEAL_TITLE.value,
         Action.OPEN_TITLES_BAG.value,
         Action.SET_TITLE_BAG.value,
+        Action.GIFT_RECIPIENTS_MENU.value,
+        Action.GIFT_TITLE_MENU.value,
+        Action.GIVE_TITLE.value,
     }
 
     @staticmethod
@@ -116,3 +120,39 @@ class TitlesPayloadFactory:
                 Field.TARGET_USER_ID.value: target_id,
             }
         )
+
+    @staticmethod
+    def gift_recipients_menu(page: int, user_id: int) -> str:
+        return json.dumps(
+            {
+                Field.ACTION_TYPE.value: Action.GIFT_RECIPIENTS_MENU.value,
+                Field.USER_ID.value: user_id,
+                Field.PAGE.value: page,
+            }
+        )
+
+    @staticmethod
+    def gift_titles_menu(page: int, target_id: int, user_id: int) -> str:
+        return json.dumps(
+            {
+                Field.ACTION_TYPE.value: Action.GIFT_TITLE_MENU.value,
+                Field.USER_ID.value: user_id,
+                Field.TARGET_USER_ID.value: target_id,
+                Field.PAGE.value: page,
+            }
+        )
+
+    @staticmethod
+    def give_title(title_id: int, target_id: int, user_id: int):
+        return json.dumps(
+            {
+                Field.ACTION_TYPE.value: Action.GIVE_TITLE.value,
+                Field.USER_ID.value: user_id,
+                Field.TARGET_USER_ID.value: target_id,
+                Field.TITLE_BAG_ID.value: title_id,
+            }
+        )
+
+    @staticmethod
+    def empty():
+        return json.dumps({})

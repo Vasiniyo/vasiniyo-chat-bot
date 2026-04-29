@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 
 from vasiniyo_chat_bot.module.titles.dto import (
+    GiftRecipientsMenu,
+    GiftTitlesMenu,
     RenameMenu,
     StealMenu,
     StealResult,
@@ -37,19 +39,12 @@ class TitlesResponseFactory:
 
     def steal_menu(self, user_id: int, steal_menu: StealMenu) -> Response:
         text = "Выбери лычку, которую хочешь украсть..."
-        buttons = [
-            self._keyboard_factory.title_steal(item, user_id)
-            for item in steal_menu.titles
-        ]
-        markup = self._keyboard_factory.steal_menu(steal_menu, user_id, buttons)
+        markup = self._keyboard_factory.steal_menu(steal_menu, user_id)
         return Response(text_units=text, markup=markup)
 
     def inventory(self, user_id: int, titles_bag: TitlesBagMenuView) -> Response:
         text = "Лычки в инвентаре"
-        buttons = [
-            self._keyboard_factory.inventory_title(item) for item in titles_bag.items
-        ]
-        markup = self._keyboard_factory.titles_bag(titles_bag, user_id, buttons)
+        markup = self._keyboard_factory.titles_bag(titles_bag, user_id)
         return Response(text_units=text, markup=markup)
 
     @staticmethod
@@ -141,6 +136,32 @@ class TitlesResponseFactory:
     @staticmethod
     def title_restored(title: str) -> Response:
         text = ["Вернула твою прежнюю лычку ", InlineCodeTemplate(title), "!"]
+        return Response(text_units=text)
+
+    def gift_recipients_menu(self, user_id: int, menu: GiftRecipientsMenu) -> Response:
+        text = "Выберите кому вы хотите передать свою лычку"
+        markup = self._keyboard_factory.gift_recipients_menu(menu, user_id)
+        return Response(text_units=text, markup=markup)
+
+    def gift_title_menu(self, user_id: int, menu: GiftTitlesMenu):
+        text = [
+            "Какую лычку вы хотите передать\nПолучатель: ",
+            UserTemplate(menu.chat_id, menu.target_user_id),
+        ]
+        markup = self._keyboard_factory.gift_titles_menu(menu, user_id)
+        return Response(text_units=text, markup=markup)
+
+    @staticmethod
+    def title_given(
+        chat_id: int, actor_id: int, target_id: int, title: str
+    ) -> Response:
+        text = [
+            UserTemplate(chat_id, actor_id),
+            " передал лычку ",
+            InlineCodeTemplate(title),
+            " пользователю ",
+            UserTemplate(chat_id, target_id),
+        ]
         return Response(text_units=text)
 
     @staticmethod
