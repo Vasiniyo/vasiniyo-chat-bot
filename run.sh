@@ -35,7 +35,7 @@ while [[ $# -gt 0 ]]; do
                 echo "Error: invalid runtime: $RUNTIME_MODE (allowed: local, docker)"
                 exit 1
             fi
-            if ! command -v docker &> /dev/null ; then
+            if [ "$RUNTIME_MODE" == "docker" ] && ! command -v docker &> /dev/null ; then
                 echo "You should install Docker: https://docs.docker.com/get-started/get-docker"
                 exit 1
             fi
