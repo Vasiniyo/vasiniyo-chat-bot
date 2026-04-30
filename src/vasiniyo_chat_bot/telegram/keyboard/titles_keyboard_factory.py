@@ -75,7 +75,7 @@ class TitlesKeyboardFactory:
         for item in steal_menu.titles:
             bts[item.user_id].append(item)
         for uid, arr in bts.items():
-            groups = [arr[i : i + 2] for i in range(0, len(arr), 3)]
+            groups = [arr[i : i + 2] for i in range(0, len(arr), 2)]
             if len(groups) == 1 and len(groups[0]) == 1:
                 button = self._title_steal(groups[0][0], user_id, True)
                 markup.add(button)
@@ -110,7 +110,7 @@ class TitlesKeyboardFactory:
         buttons = [
             self._gift_title(item, menu.target_user_id, user_id) for item in menu.titles
         ]
-        groups = [buttons[i : i + 3] for i in range(0, len(buttons), 3)]
+        groups = [buttons[i : i + 2] for i in range(0, len(buttons), 2)]
         for group in groups:
             markup.add(*group)
         navigation = self._gift_titles_menu_navigation(menu, user_id)
@@ -122,7 +122,7 @@ class TitlesKeyboardFactory:
     def titles_bag(self, titles_bag: TitlesBagMenuView, user_id: int):
         markup = InlineKeyboardMarkup()
         buttons = [self._inventory_title(item) for item in titles_bag.items]
-        groups = [buttons[i : i + 3] for i in range(0, len(buttons), 3)]
+        groups = [buttons[i : i + 2] for i in range(0, len(buttons), 2)]
         for group in groups:
             markup.add(*group)
         navigation = self._bag_menu_navigation(titles_bag, user_id)
