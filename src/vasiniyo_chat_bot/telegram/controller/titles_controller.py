@@ -185,7 +185,7 @@ class TitlesController:
         response = self._response_factory.rename_menu(ctx.user_id, menu)
         self._renderer.edit(response, ctx)
 
-    def _show_steal_menu(self, ctx: UserContext, page: int, page_size: int = 21):
+    def _show_steal_menu(self, ctx: UserContext, page: int, page_size: int = 20):
         menu = self._titles_service.show_steal_menu(
             ctx.chat_id, ctx.user_id, page, page_size
         )
@@ -206,7 +206,7 @@ class TitlesController:
         response = self._response_factory.steal_menu(ctx.user_id, menu)
         self._renderer.edit(response, ctx)
 
-    def _handle_show_titles_bag(self, ctx: UserContext, page: int, page_size: int = 21):
+    def _handle_show_titles_bag(self, ctx: UserContext, page: int, page_size: int = 20):
         titles_bag = self._titles_service.handle_show_titles_bag(
             ctx.chat_id, ctx.user_id, page, page_size
         )
@@ -226,12 +226,14 @@ class TitlesController:
         )
         self._renderer.edit(response, ctx)
 
-    def _handle_show_recipients_menu(self, ctx: UserContext, page: int):
+    def _handle_show_recipients_menu(
+        self, ctx: UserContext, page: int, page_size: int = 21
+    ):
         menu = self._titles_service.get_gift_recipients(
             ctx.chat_id,
             ctx.user_id,
             page,
-            21,
+            page_size,
             lambda uid: self._user_service.get_username(
                 ctx.chat_id, uid, is_active=True
             ),
@@ -239,9 +241,11 @@ class TitlesController:
         response = self._response_factory.gift_recipients_menu(ctx.user_id, menu)
         self._renderer.edit(response, ctx)
 
-    def _handle_show_gift_title_menu(self, ctx: UserContext, target_id: int, page: int):
+    def _handle_show_gift_title_menu(
+        self, ctx: UserContext, target_id: int, page: int, page_size: int = 20
+    ):
         menu = self._titles_service.get_gift_titles(
-            ctx.chat_id, ctx.user_id, target_id, page, 21
+            ctx.chat_id, ctx.user_id, target_id, page, page_size
         )
         response = self._response_factory.gift_title_menu(ctx.user_id, menu)
         self._renderer.edit(response, ctx)
