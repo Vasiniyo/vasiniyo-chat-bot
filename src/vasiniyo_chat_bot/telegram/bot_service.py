@@ -3,34 +3,32 @@ from functools import lru_cache
 from io import BytesIO
 import logging
 import threading
-from typing import Callable, Literal
+from typing import Callable
+from typing import Literal
 import uuid
 
-from telebot import REPLY_MARKUP_TYPES, TeleBot
+from telebot import REPLY_MARKUP_TYPES
+from telebot import TeleBot
 from telebot.apihelper import ApiTelegramException
-from telebot.types import (
-    ChatMember,
-    ChatMemberAdministrator,
-    ChatMemberMember,
-    File,
-    InlineQueryResultArticle,
-    InputFile,
-    InputMediaPhoto,
-    InputTextMessageContent,
-    LinkPreviewOptions,
-    Message,
-    ReplyParameters,
-)
+from telebot.types import ChatMember
+from telebot.types import ChatMemberAdministrator
+from telebot.types import ChatMemberMember
+from telebot.types import File
+from telebot.types import InlineQueryResultArticle
+from telebot.types import InputFile
+from telebot.types import InputMediaPhoto
+from telebot.types import InputTextMessageContent
+from telebot.types import LinkPreviewOptions
+from telebot.types import Message
+from telebot.types import ReplyParameters
 
+from vasiniyo_chat_bot.module.dto import BoldTemplate
+from vasiniyo_chat_bot.module.dto import InlineCodeTemplate
+from vasiniyo_chat_bot.module.dto import ItalicTemplate
+from vasiniyo_chat_bot.module.dto import TextTemplate
+from vasiniyo_chat_bot.module.dto import UserContext
+from vasiniyo_chat_bot.module.dto import UserTemplate
 from vasiniyo_chat_bot.safely_bot_utils import safe_wrapper
-from vasiniyo_chat_bot.telegram.dto import (
-    BoldTemplate,
-    InlineCodeTemplate,
-    ItalicTemplate,
-    TextTemplate,
-    UserContext,
-    UserTemplate,
-)
 from vasiniyo_chat_bot.telegram.service.markdown_v2_service import MarkdownV2Service
 
 logger = logging.getLogger(__name__)
@@ -156,7 +154,8 @@ class BotService:
         self._bot.edit_message_text(
             text,
             ctx.chat_id,
-            ctx.message_id,
+            message_id=ctx.message_id,
+            inline_message_id=ctx.inline_message_id,
             parse_mode="MarkdownV2",
             link_preview_options=LinkPreviewOptions(is_disabled=is_disabled_preview),
             reply_markup=reply_markup,
@@ -237,15 +236,20 @@ class BotService:
 
     @safe_wrapper(default=None)
     def answer_inline_query(
-        self, commands: list[tuple[str, Callable[[], str]]], query_id: str
+        self,
+        commands: list[tuple[str, Callable[[], tuple[str, REPLY_MARKUP_TYPES | None]]]],
+        query_id: str,
     ) -> None:
+        contents = [(title, get_content()) for (title, get_content) in commands]
+        logger.info("contents", extra={"contents": contents})
         inline_results = [
             InlineQueryResultArticle(
                 id=str(uuid.uuid4()),
                 title=title,
-                input_message_content=InputTextMessageContent(get_content()),
+                input_message_content=InputTextMessageContent(content[0]),
+                reply_markup=content[1],
             )
-            for (title, get_content) in commands
+            for (title, content) in contents
         ]
         self._bot.answer_inline_query(query_id, inline_results, cache_time=0)
 

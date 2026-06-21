@@ -1,5 +1,7 @@
 from vasiniyo_chat_bot import assets
-from vasiniyo_chat_bot.module.captcha.dto import Captcha, Gen, Validate
+from vasiniyo_chat_bot.module.captcha.dto import Captcha
+from vasiniyo_chat_bot.module.captcha.dto import Gen
+from vasiniyo_chat_bot.module.captcha.dto import Validate
 
 
 class CaptchaReader:

@@ -1,4 +1,4 @@
-from vasiniyo_chat_bot.module.drink_or_not.dto import Drinks
+from vasiniyo_chat_bot.module.drink.dto import Drinks
 
 
 class DrinksReader:

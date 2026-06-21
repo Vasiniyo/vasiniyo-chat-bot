@@ -7,14 +7,15 @@ from vasiniyo_chat_bot.database.sqlite.repository.dto import SqliteDatabaseSetti
 from vasiniyo_chat_bot.database.sqlite.repository.sqlite_repository import (
     SqliteRepository,
 )
-from vasiniyo_chat_bot.module.likes.dto import Leaderboard, LeaderboardRow
+from vasiniyo_chat_bot.module.like.dto import Leaderboard
+from vasiniyo_chat_bot.module.like.dto import LeaderboardRow
 from vasiniyo_chat_bot.module.play.events_repository import EventsRepository
 
 
 class SqliteEventsRepository(SqliteRepository, EventsRepository):
-    def __init__(self, eventsDao: EventsDao, settings: SqliteDatabaseSettings):
+    def __init__(self, events_dao: EventsDao, settings: SqliteDatabaseSettings):
         super().__init__(settings)
-        self._eventsDao = eventsDao
+        self._eventsDao = events_dao
 
     def insert_winner(self, chat_id: int, user_id: int, event_id: int) -> int:
         return self.transaction(

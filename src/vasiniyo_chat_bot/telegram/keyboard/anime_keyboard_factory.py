@@ -1,7 +1,8 @@
-from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
+from telebot.types import InlineKeyboardButton
+from telebot.types import InlineKeyboardMarkup
 
+from vasiniyo_chat_bot.module.anime.anime_payload_factory import AnimePayloadFactory
 from vasiniyo_chat_bot.module.anime.dto import AnimeGenre
-from vasiniyo_chat_bot.telegram.payload.anime_payload_factory import AnimePayloadFactory
 
 
 class AnimeKeyboardFactory:

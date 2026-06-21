@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from enum import Enum, auto
+from enum import Enum
+from enum import auto
 
 
 class MessageType(Enum):
@@ -15,11 +16,11 @@ class Trigger:
     chance: float
     to_target: bool
     fuzzy: bool
+    exact_match: bool
 
 
 @dataclass(frozen=True)
-class StickerTrigger(Trigger):
-    fuzzy: False = False
+class StickerTrigger(Trigger): ...
 
 
 @dataclass(frozen=True)
@@ -41,7 +42,7 @@ class LongMessage:
 @dataclass(frozen=True)
 class StickerResult:
     file_id: str
-    to_reply: True = True
+    to_reply: bool
 
 
 @dataclass(frozen=True)

@@ -49,7 +49,16 @@ def test_match(user_message: str, category_keys: list):
             find_matches(user_message, lower_category_keys), "", fillvalue=False
         ),
         *zip_longest(
-            find_matches(__convert_layout(user_message), lower_category_keys),
+            find_matches(
+                __convert_layout(user_message, _en_ru_layout), lower_category_keys
+            ),
+            "",
+            fillvalue=True,
+        ),
+        *zip_longest(
+            find_matches(
+                __convert_layout(user_message, _ru_en_layout), lower_category_keys
+            ),
             "",
             fillvalue=True,
         ),
@@ -57,13 +66,19 @@ def test_match(user_message: str, category_keys: list):
     return matched or [(None, False)]
 
 
-def __convert_layout(text: str) -> str:
-    return "".join(LAYOUT_MAP.get(char, char) for char in text)
+def __convert_layout(text: str, layout: dict[str, str]) -> str:
+    return "".join(layout.get(char, char) for char in text)
 
 
-LAYOUT_MAP = dict(
+_en_ru_layout = dict(
     zip(
-        "qwertyuiopasdfghjklzxcvbnmйцукенгшщзфывапролдячсмить",
-        "йцукенгшщзфывапролдячсмитьqwertyuiopasdfghjklzxcvbnm",
+        r" qwertyuiop[]asdfghjkl;'zxcvbnm,./1234567890\-=",
+        r" йцукенгшщзхъфывапролджэячсмитьбю.1234567890\-=",
+    )
+)
+_ru_en_layout = dict(
+    zip(
+        r" йцукенгшщзхъфывапролджэячсмитьбю.1234567890\-=",
+        r" qwertyuiop[]asdfghjkl;'zxcvbnm,./1234567890\-=",
     )
 )

@@ -1,4 +1,5 @@
-from enum import Enum, auto
+from enum import Enum
+from enum import auto
 
 
 class CommandKey(Enum):
@@ -14,3 +15,4 @@ class CommandKey(Enum):
     TOP_WINNERS = auto()
     TEST_NEW_CATEGORY = auto()
     TEST_NEW_WINNER = auto()
+    DAILY_SIZE = auto()

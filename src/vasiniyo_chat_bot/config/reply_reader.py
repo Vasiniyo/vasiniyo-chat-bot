@@ -1,11 +1,9 @@
 import logging
 
-from vasiniyo_chat_bot.module.reply.dto import (
-    MessageType,
-    StickerTrigger,
-    TextTrigger,
-    TriggerReplies,
-)
+from vasiniyo_chat_bot.module.reply.dto import MessageType
+from vasiniyo_chat_bot.module.reply.dto import StickerTrigger
+from vasiniyo_chat_bot.module.reply.dto import TextTrigger
+from vasiniyo_chat_bot.module.reply.dto import TriggerReplies
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +20,10 @@ class ReplyReader:
         text_replies = [
             *self._build_text_to_sticker(stickers),
             *self._build_text_to_text(
-                key="text_to_text_to_target", to_target=True, fuzzy=False
+                key="text_to_text_to_target",
+                to_target=True,
+                fuzzy=False,
+                exact_match=True,
             ),
             *self._build_text_to_text(key="text_to_text", to_target=False, fuzzy=True),
             *self._build_text_to_text(
@@ -34,7 +35,9 @@ class ReplyReader:
             text_replies=text_replies, sticker_replies=sticker_replies
         )
 
-    def _build_text_to_sticker(self, stickers: dict[str, str]) -> list[TextTrigger]:
+    def _build_text_to_sticker(
+        self, stickers: dict[str, str], exact_match=False
+    ) -> list[TextTrigger]:
         return [
             TextTrigger(
                 response_type=MessageType.STICKER,
@@ -43,15 +46,22 @@ class ReplyReader:
                 chance=1.0,
                 to_target=False,
                 fuzzy=True,
+                exact_match=exact_match,
             )
             for key, value in self._section.get("text_to_sticker", {}).items()
         ]
 
     def _build_text_to_text(
-        self, *, key: str, to_target: bool, fuzzy: bool, chance: float = 1.0
+        self,
+        *,
+        key: str,
+        to_target: bool,
+        fuzzy: bool,
+        exact_match=False,
+        chance: float = 1.0,
     ) -> list[TextTrigger]:
         expanded = {
-            req.replace(f"{{{category[0]}}}", value): self.to_list(res)
+            req.replace(f"{{{category[0]}}}", value): self._to_list(res)
             for req, res in self._section.get(key, {}).items()
             for category in self._section.get("categories", {}).items()
             for value in category[1]
@@ -64,12 +74,13 @@ class ReplyReader:
                 chance=chance,
                 to_target=to_target,
                 fuzzy=fuzzy,
+                exact_match=exact_match,
             )
             for req, responses in expanded.items()
         ]
 
     def _build_sticker_to_sticker(
-        self, stickers: dict[str, str]
+        self, stickers: dict[str, str], exact_match=False
     ) -> list[StickerTrigger]:
         return [
             StickerTrigger(
@@ -78,13 +89,16 @@ class ReplyReader:
                 responses=self._to_sticker_list(stickers, value),
                 chance=1,
                 to_target=False,
+                exact_match=exact_match,
+                fuzzy=False,
             )
             for key, value in self._section.get("sticker_to_sticker", {}).items()
+            if key in stickers
         ]
 
     def _expand_templates(self, template_dict: dict) -> dict[str, list[str]]:
         return {
-            req.replace(f"{{{category[0]}}}", value): self.to_list(res)
+            req.replace(f"{{{category[0]}}}", value): self._to_list(res)
             for req, res in template_dict.items()
             for category in self._section.get("categories", {}).items()
             for value in category[1]
@@ -120,9 +134,9 @@ class ReplyReader:
         return stickers
 
     @staticmethod
-    def to_list(value: str | list[str]) -> list[str]:
+    def _to_list(value: str | list[str]) -> list[str]:
         return [value] if isinstance(value, str) else value
 
     @staticmethod
     def _to_sticker_list(stickers, value: str | list[str]):
-        return [stickers[v] for v in ReplyReader.to_list(value)]
+        return [stickers[v] for v in ReplyReader._to_list(value) if v in stickers]
