@@ -2,9 +2,10 @@ import datetime
 from functools import wraps
 import json
 import logging
-from typing import Callable, TypeVar
+from typing import Callable
+from typing import TypeVar
 
-from vasiniyo_chat_bot.telegram.dto import Field
+from vasiniyo_chat_bot.module.dto import Field
 
 logger = logging.getLogger(__name__)
 

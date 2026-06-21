@@ -1,6 +1,7 @@
 import random
 
-from vasiniyo_chat_bot.module.daily_size.dto import DailySizeResult, DailySizeSettings
+from vasiniyo_chat_bot.module.daily_size.dto import DailySizeResult
+from vasiniyo_chat_bot.module.daily_size.dto import DailySizeSettings
 
 
 class DailySizeService:

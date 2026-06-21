@@ -3,7 +3,8 @@ import logging
 import traceback
 from typing import TypedDict
 
-from telebot.types import CallbackQuery, Message
+from telebot.types import CallbackQuery
+from telebot.types import Message
 
 
 class RollType(Enum):
@@ -28,6 +29,13 @@ class LogDetails(TypedDict, total=False):
     details: str
     roll_type: RollType
     dice: RolledDice
+
+
+def shorten(text) -> str:
+    text = str(text)
+    limit = 25
+    part = (limit - 3) // 2
+    return text if len(text) <= limit else f"{text[:part]}...{text[-part:]}"
 
 
 class LogFormatter(logging.Formatter):
@@ -74,7 +82,7 @@ class LogFormatter(logging.Formatter):
                                 extras.append(f"last_name={v.from_user.last_name}")
                                 extras.append(f"is_bot={v.from_user.is_bot}")
                     case _:
-                        extras.append(f"{k}={v!r}")
+                        extras.append(f"{k}={shorten(v)!r}")
         extras = " ".join(extras)
         trace = ""
         if record.exc_info:

@@ -1,14 +1,12 @@
 import math
 import random
 
-from .dto import (
-    LongMessage,
-    MessageType,
-    StickerResult,
-    TextResult,
-    Trigger,
-    TriggerReplies,
-)
+from .dto import LongMessage
+from .dto import MessageType
+from .dto import StickerResult
+from .dto import TextResult
+from .dto import Trigger
+from .dto import TriggerReplies
 from .fuzzy_match.fuzzy_match import choice_one_match
 
 
@@ -30,10 +28,14 @@ class ReplyService:
     @staticmethod
     def _get_reply(text, triggers: list[Trigger]) -> TextResult | StickerResult | None:
         possible_replies = []
+        reply = None
         for trigger in triggers:
             if trigger.chance < random.random():
                 continue
-            if not trigger.fuzzy and text == trigger.request:
+            if trigger.exact_match:
+                if text == trigger.request:
+                    reply = random.choice(trigger.responses)
+            elif not trigger.fuzzy and text == trigger.request:
                 reply = random.choice(trigger.responses)
             else:
                 answers = {trigger.request: trigger.responses}
@@ -48,7 +50,9 @@ class ReplyService:
                     TextResult(text=reply, to_reply=trigger.to_target)
                 )
             else:
-                possible_replies.append(StickerResult(file_id=reply))
+                possible_replies.append(
+                    StickerResult(file_id=reply, to_reply=trigger.to_target)
+                )
         if possible_replies:
             return random.choice(possible_replies)
         return None

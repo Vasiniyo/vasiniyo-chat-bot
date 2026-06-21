@@ -1,5 +1,6 @@
 from vasiniyo_chat_bot.module.anime.anime_provider import AnimeProvider
-from vasiniyo_chat_bot.module.anime.dto import Anime, AnimeGenre
+from vasiniyo_chat_bot.module.anime.dto import Anime
+from vasiniyo_chat_bot.module.anime.dto import AnimeGenre
 
 
 class AnimeService:

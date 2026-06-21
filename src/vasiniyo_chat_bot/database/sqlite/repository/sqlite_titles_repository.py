@@ -8,7 +8,8 @@ from vasiniyo_chat_bot.database.sqlite.repository.dto import SqliteDatabaseSetti
 from vasiniyo_chat_bot.database.sqlite.repository.sqlite_repository import (
     SqliteRepository,
 )
-from vasiniyo_chat_bot.module.likes.dto import Leaderboard, LeaderboardRow
+from vasiniyo_chat_bot.module.like.dto import Leaderboard
+from vasiniyo_chat_bot.module.like.dto import LeaderboardRow
 from vasiniyo_chat_bot.module.titles.titles_repository import TitlesRepository
 
 

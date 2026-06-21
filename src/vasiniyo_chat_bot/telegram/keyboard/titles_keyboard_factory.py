@@ -1,24 +1,17 @@
-import logging
-
 from black.trans import defaultdict
-from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
+from telebot.types import InlineKeyboardButton
+from telebot.types import InlineKeyboardMarkup
 
-from vasiniyo_chat_bot.module.titles.dto import (
-    GiftRecipientInfo,
-    GiftRecipientsMenu,
-    GiftTitlesMenu,
-    RenameMenu,
-    StealMenu,
-    TitleInfo,
-)
-from vasiniyo_chat_bot.telegram.dto import (
-    Pageable,
-    TitlesBagItemView,
-    TitlesBagMenuView,
-)
-from vasiniyo_chat_bot.telegram.payload.titles_payload_factory import (
-    TitlesPayloadFactory,
-)
+from vasiniyo_chat_bot.module.dto import Pageable
+from vasiniyo_chat_bot.module.titles.dto import GiftRecipientInfo
+from vasiniyo_chat_bot.module.titles.dto import GiftRecipientsMenu
+from vasiniyo_chat_bot.module.titles.dto import GiftTitlesMenu
+from vasiniyo_chat_bot.module.titles.dto import RenameMenu
+from vasiniyo_chat_bot.module.titles.dto import StealMenu
+from vasiniyo_chat_bot.module.titles.dto import TitleInfo
+from vasiniyo_chat_bot.module.titles.dto import TitlesBagItemView
+from vasiniyo_chat_bot.module.titles.dto import TitlesBagMenu
+from vasiniyo_chat_bot.module.titles.titles_payload_factory import TitlesPayloadFactory
 
 
 class TitlesKeyboardFactory:
@@ -119,7 +112,7 @@ class TitlesKeyboardFactory:
         markup.add(self._rename_menu(user_id))
         return markup
 
-    def titles_bag(self, titles_bag: TitlesBagMenuView, user_id: int):
+    def titles_bag(self, titles_bag: TitlesBagMenu, user_id: int):
         markup = InlineKeyboardMarkup()
         buttons = [self._inventory_title(item) for item in titles_bag.items]
         groups = [buttons[i : i + 2] for i in range(0, len(buttons), 2)]

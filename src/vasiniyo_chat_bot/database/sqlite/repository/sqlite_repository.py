@@ -3,7 +3,8 @@ from __future__ import annotations
 import sqlite3
 from sqlite3 import Connection
 import threading
-from typing import Callable, TypeVar
+from typing import Callable
+from typing import TypeVar
 
 from vasiniyo_chat_bot.database.sqlite.repository.dto import SqliteDatabaseSettings
 

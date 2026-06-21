@@ -1,7 +1,0 @@
-from .anime_response_factory import AnimeResponseFactory
-from .captcha_response_factory import CaptchaResponseFactory
-from .drink_response_factory import DrinkResponseFactory
-from .help_response_factory import HelpResponseFactory
-from .like_response_factory import LikeResponseFactory
-from .play_response_factory import PlayResponseFactory
-from .reply_response_factory import ReplyResponseFactory

@@ -4,7 +4,8 @@ import random
 import string
 
 from vasiniyo_chat_bot.module.captcha.captcha_repository import CaptchaRepository
-from vasiniyo_chat_bot.module.captcha.dto import Captcha, CaptchaUser
+from vasiniyo_chat_bot.module.captcha.dto import Captcha
+from vasiniyo_chat_bot.module.captcha.dto import CaptchaUser
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,9 @@ class CaptchaService:
         self._allowed_symbols = [
             c for c in (string.ascii_letters + string.digits) if c not in banned
         ]
+
+    def captcha_properties(self):
+        return self._captcha_properties
 
     def attempts_remained(self, user: CaptchaUser):
         return user.failed_attempts < self._captcha_properties.validate.attempts

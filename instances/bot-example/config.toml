@@ -2,7 +2,7 @@
 
 "welcome_message_for_new_members" = "Здравствуй, новый друг!\nТы присоединился к секретному чату самых лучших разработчиков ПО (и будущих самых лучших разработчиков ПО).\nЗдесь все работают сообща и помогают друг друга.\nИ хотя мы далеко не ангелы и не святые,\nно мы не травим и не троллим друг друга,\nбез особой на то причины(например указа мейнтейнера 😈)\nТак что оставь своих тараканов перед дверью и добро пожаловать!\n\nP.S. а вот здесь, ты можешь ознакомиться с нашим текущим проектом: https://github.com/Vasiniyo/vasiniyo-chat-bot"
 "mods" = [
-    "like",
+  # "like",
     "drink",
     "daily_size",
     "anime",
@@ -10,7 +10,60 @@
     "play",
     "reply" ,
     "captcha",
+    "help"
 ]
+
+[commands.help]
+"name" = "/help"
+"desc" = "Выводит список доступных команд и их описание."
+
+[commands.top_likes]
+"name" = "/top_likes"
+"desc" = "Показывает топ пользователей по лайкам."
+
+[commands.like]
+"name" = "/like"
+"desc" = "Ставит лайк сообщению, на которое вы ответили."
+
+[commands.rename]
+"name" = "/rename"
+"desc" = "Ставит случайную лычку."
+
+[commands.play]
+"name" = "/play"
+"desc" = "Узнать своё значение в сегодняшней категории."
+
+[commands.players]
+"name" = "/players"
+"desc" = "Показать всех игроков."
+
+[commands.winner]
+"name" = "/winner"
+"desc" = "Показать победителя дня."
+
+[commands.top_winners]
+"name" = "/top_winners"
+"desc" = "Топ победителей за всё время."
+
+[commands.test_new_category]
+"name" = "/test_new_category"
+"desc" = "Сыграть в случайную категорию."
+
+[commands.test_new_winner]
+"name" = "/test_new_winner"
+"desc" = "Выбрать случайного победителя."
+
+[inlines.anime]
+"name" = "Аниме?"
+"desc" = "Выбирает случайное аниме."
+
+[inlines.drink_or_not]
+"name" = "Сегодня пьём?"
+"desc" = "Говорит пить сегодня или нет."
+
+[inlines.daily_size]
+"name" = "Не стыдись и поделись!"
+"desc" = "Показывает сегодняшний размер."
 
 [event]
 "default_winner_avatar" = "anon-ava.jpg"
@@ -20,6 +73,12 @@
 "avatar_size" = 380
 "avatar_position_x" = 150
 "avatar_position_y" = 320
+
+[[event.winner_pictures]]
+"background" = "spongebob-fire.png"
+"avatar_size" = 141
+"avatar_position_x" = 36
+"avatar_position_y" = 65
 
 [unique_file_id]
 "терпи" = "ExneskoroSticky;AgADcG4AAiWZuUk"
@@ -164,6 +223,7 @@ long_message = [
     "Извини, полностью твое словоблудие я даже не смогла дочитать. Прочитала полторы страницы, потом бросила. Если ты не можешь сформулировать свою мысль по конкретному вопросу кратко, то ты ее не можешь сформулировать вообще.",
     "Ты можешь кратко обрисовать зачем ты это здесь пишешь?",
     "Нифига у тебя ЧСВ шкалит. Не комментарий, в вступительная речь в суде. У тебя все ок? Может могу чем помочь?",
+    "Ты можешь хотя бы одну короткую историю рассказать интересную или зачем тогда вообще этот цирк?",
 ]
 
 [["custom-titles".adjectives]]

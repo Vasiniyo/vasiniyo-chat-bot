@@ -7,14 +7,15 @@ from vasiniyo_chat_bot.database.sqlite.repository.dto import SqliteDatabaseSetti
 from vasiniyo_chat_bot.database.sqlite.repository.sqlite_repository import (
     SqliteRepository,
 )
-from vasiniyo_chat_bot.module.likes.dto import Leaderboard, LeaderboardRow
-from vasiniyo_chat_bot.module.likes.likes_repository import LikesRepository
+from vasiniyo_chat_bot.module.like.dto import Leaderboard
+from vasiniyo_chat_bot.module.like.dto import LeaderboardRow
+from vasiniyo_chat_bot.module.like.likes_repository import LikesRepository
 
 
 class SqliteLikesRepository(SqliteRepository, LikesRepository):
-    def __init__(self, likesDao: LikesDao, settings: SqliteDatabaseSettings):
+    def __init__(self, likes_dao: LikesDao, settings: SqliteDatabaseSettings):
         super().__init__(settings)
-        self._likesDao = likesDao
+        self._likesDao = likes_dao
 
     def like_and_count(self, chat_id: int, from_user_id: int, to_user_id: int) -> int:
         def _tx(conn: Connection):

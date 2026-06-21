@@ -4,14 +4,12 @@ from telebot import TeleBot
 from telebot.types import Sticker
 import toml
 
-from vasiniyo_chat_bot.config import (
-    CustomTitlesReader,
-    DrinksReader,
-    EventReader,
-    LongMessageReader,
-    ReplyReader,
-    StickersConfigReader,
-)
+from vasiniyo_chat_bot.config import CustomTitlesReader
+from vasiniyo_chat_bot.config import DrinksReader
+from vasiniyo_chat_bot.config import EventReader
+from vasiniyo_chat_bot.config import LongMessageReader
+from vasiniyo_chat_bot.config import ReplyReader
+from vasiniyo_chat_bot.config import StickersConfigReader
 from vasiniyo_chat_bot.config.bot_settings_reader import BotSettingsReader
 from vasiniyo_chat_bot.config.captcha_reader import CaptchaReader
 from vasiniyo_chat_bot.config.daily_size_reader import DailySizeReader

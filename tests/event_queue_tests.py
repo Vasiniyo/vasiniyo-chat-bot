@@ -3,7 +3,10 @@ import time
 import unittest
 from unittest.mock import patch
 
-from vasiniyo_chat_bot.event_queue import EVENTS, add_task, cancel_task, tick
+from vasiniyo_chat_bot.event_queue import EVENTS
+from vasiniyo_chat_bot.event_queue import add_task
+from vasiniyo_chat_bot.event_queue import cancel_task
+from vasiniyo_chat_bot.event_queue import tick
 
 
 def log_tick_results(result, current_tick):

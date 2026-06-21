@@ -1,16 +1,15 @@
 from typing import Callable
 
-from vasiniyo_chat_bot.module.titles.dto import (
-    GiftRecipientInfo,
-    GiftRecipientsMenu,
-    GiftTitlesMenu,
-    RenameMenu,
-    StealMenu,
-    StealResult,
-    TitleChanged,
-    TitleInfo,
-    TitlesBagMenu,
-)
+from vasiniyo_chat_bot.module.titles.dto import GiftRecipientInfo
+from vasiniyo_chat_bot.module.titles.dto import GiftRecipientsMenu
+from vasiniyo_chat_bot.module.titles.dto import GiftTitlesMenu
+from vasiniyo_chat_bot.module.titles.dto import RenameMenu
+from vasiniyo_chat_bot.module.titles.dto import StealMenu
+from vasiniyo_chat_bot.module.titles.dto import StealResult
+from vasiniyo_chat_bot.module.titles.dto import TitleChanged
+from vasiniyo_chat_bot.module.titles.dto import TitleInfo
+from vasiniyo_chat_bot.module.titles.dto import TitlesBagItemView
+from vasiniyo_chat_bot.module.titles.dto import TitlesBagMenu
 from vasiniyo_chat_bot.module.titles.titles_provider import TitlesProvider
 from vasiniyo_chat_bot.module.titles.titles_repository import TitlesRepository
 from vasiniyo_chat_bot.safely_bot_utils import daily_hash
@@ -126,7 +125,12 @@ class TitlesService:
         start_page = page * page_size
         end_page = start_page + page_size
         return TitlesBagMenu(
-            titles=titles[start_page:end_page],
+            items=[
+                TitlesBagItemView(
+                    user_id=user_id, titles_bag_id=title_bag_id, title=title
+                )
+                for title_bag_id, user_id, title in titles[start_page:end_page]
+            ],
             page=page,
             has_prev_pages=page > 0,
             has_more_pages=end_page < len(titles),

@@ -13,7 +13,7 @@ from vasiniyo_chat_bot.database.sqlite.repository.dto import SqliteDatabaseSetti
 from vasiniyo_chat_bot.event_queue import start_ticking_if_needed
 from vasiniyo_chat_bot.logger.logger import LogFormatter
 from vasiniyo_chat_bot.migration import sqlite_migration
-from vasiniyo_chat_bot.telegram.dispatcher import init_controller
+from vasiniyo_chat_bot.telegram.dispatcher import BotFeatureRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -38,22 +38,35 @@ def main():
     start_ticking_if_needed()
     config_path = os.environ.get("CONFIG_PATH")
     config_ = load_all(config_path)
+    for reply in config_.trigger_replies.text_replies:
+        for response in reply.responses:
+            logger.info(
+                f"reply_loaded",
+                extra={
+                    "response_type": reply.response_type.name,
+                    "chance": reply.chance,
+                    "to_target": reply.to_target,
+                    "fuzzy": reply.fuzzy,
+                    "request": reply.request,
+                    "responses": response,
+                },
+            )
     if isinstance(config_.database, SqliteDatabaseSettings):
         sqlite_migration.apply_migrations(config_.database.database_path)
     bot = config_.bot_settings.bot
-    controller = init_controller(config_)
-    for handler in controller.messages:
+    factory = BotFeatureRegistry(config_)
+    for handler in factory.message_handlers():
         bot.message_handler(**handler.kwargs)(handler.handler)
-    for handler in controller.callbacks:
+    for handler in factory.callback_query_handlers():
         bot.callback_query_handler(**handler.kwargs)(handler.handler)
-    if inline_handler := controller.inline:
+    if inline_handler := factory.inline_handler():
         bot.inline_handler(**inline_handler.kwargs)(inline_handler.handler)
+    my_commands = factory.my_commands()
     bot.set_my_commands(
-        [BotCommand(title, desc) for title, desc in controller.my_commands.items()]
+        [BotCommand(title, desc) for title, desc in my_commands.items()]
     )
-    logger.info(
-        "commands_enabled", extra={"commands": list(controller.my_commands.keys())}
-    )
+    for command in sorted(my_commands.keys()):
+        logger.info("command_enabled", extra={"command": command})
     bot.delete_webhook(drop_pending_updates=True)
     if "test" in config_.bot_settings.mods:
         logger.info("test_mode_enabled")

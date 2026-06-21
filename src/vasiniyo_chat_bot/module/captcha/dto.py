@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 
-@dataclass
+@dataclass(frozen=True)
 class Gen:
     length: int
     banned_symbols: str
@@ -11,7 +11,7 @@ class Gen:
     font_path: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class Validate:
     timer: int
     update_freq: int
@@ -19,7 +19,7 @@ class Validate:
     bar_length: int
 
 
-@dataclass
+@dataclass(frozen=True)
 class Captcha:
     gen: Gen
     validate: Validate

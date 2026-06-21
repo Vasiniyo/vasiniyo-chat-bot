@@ -1,5 +1,8 @@
 from vasiniyo_chat_bot import assets
-from vasiniyo_chat_bot.module.play.dto import Event, Picture, PlayCategory, WinValue
+from vasiniyo_chat_bot.module.play.dto import Event
+from vasiniyo_chat_bot.module.play.dto import Picture
+from vasiniyo_chat_bot.module.play.dto import PlayCategory
+from vasiniyo_chat_bot.module.play.dto import WinValue
 
 
 class EventReader:

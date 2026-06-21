@@ -1,6 +1,7 @@
-from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
+from telebot.types import InlineKeyboardButton
+from telebot.types import InlineKeyboardMarkup
 
-from vasiniyo_chat_bot.telegram.payload.captcha_payload_factory import (
+from vasiniyo_chat_bot.module.captcha.captcha_payload_factory import (
     CaptchaPayloadFactory,
 )
 

@@ -1,4 +1,11 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
+
+from vasiniyo_chat_bot.module.dto import CallbackContext
+from vasiniyo_chat_bot.module.dto import Menu
+from vasiniyo_chat_bot.module.dto import Pageable
+from vasiniyo_chat_bot.module.titles.titles_payload_factory import TitlesPayload
 
 
 @dataclass(frozen=True)
@@ -31,7 +38,15 @@ class CustomTitles:
 
 
 @dataclass(frozen=True)
-class RenameMenu:
+class AnimeGenreMenu(Menu): ...
+
+
+@dataclass(frozen=True)
+class CaptchaMenu(Menu): ...
+
+
+@dataclass(frozen=True)
+class RenameMenu(Menu):
     title: str | None
     d6: bool
     random_d6: bool
@@ -49,17 +64,9 @@ class TitleInfo:
 
 
 @dataclass(frozen=True)
-class StealMenu:
+class StealMenu(Menu):
     chat_id: int
     titles: list[TitleInfo]
-    page: int
-    has_prev_pages: bool
-    has_more_pages: bool
-
-
-@dataclass(frozen=True)
-class TitlesBagMenu:
-    titles: list[tuple[int, int, str]]
     page: int
     has_prev_pages: bool
     has_more_pages: bool
@@ -87,7 +94,7 @@ class GiftRecipientInfo:
 
 
 @dataclass(frozen=True)
-class GiftRecipientsMenu:
+class GiftRecipientsMenu(Menu):
     chat_id: int
     recipients: list[GiftRecipientInfo]
     page: int
@@ -96,10 +103,27 @@ class GiftRecipientsMenu:
 
 
 @dataclass(frozen=True)
-class GiftTitlesMenu:
+class GiftTitlesMenu(Menu):
     chat_id: int
     target_user_id: int
     titles: list[TitleInfo]
     page: int
     has_prev_pages: bool
     has_more_pages: bool
+
+
+@dataclass(frozen=True)
+class TitlesBagItemView:
+    user_id: int
+    titles_bag_id: int
+    title: str
+
+
+@dataclass(frozen=True)
+class TitlesBagMenu(Pageable, Menu):
+    items: list[TitlesBagItemView]
+
+
+@dataclass(frozen=True)
+class TitlesCallbackContext(CallbackContext):
+    payload: TitlesPayload

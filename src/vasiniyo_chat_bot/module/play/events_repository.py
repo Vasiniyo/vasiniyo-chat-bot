@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from vasiniyo_chat_bot.module.likes.dto import Leaderboard
+from vasiniyo_chat_bot.module.like.dto import Leaderboard
 
 
 class EventsRepository(Protocol):

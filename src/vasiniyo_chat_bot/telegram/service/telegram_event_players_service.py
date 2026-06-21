@@ -1,4 +1,5 @@
-from telebot.types import ChatMemberAdministrator, ChatMemberOwner
+from telebot.types import ChatMemberAdministrator
+from telebot.types import ChatMemberOwner
 
 from vasiniyo_chat_bot.module.play.event_player_service import EventPlayersService
 from vasiniyo_chat_bot.telegram.bot_service import BotService

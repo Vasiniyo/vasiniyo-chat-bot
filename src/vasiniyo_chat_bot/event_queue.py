@@ -1,6 +1,7 @@
 from collections import deque
 import logging
-from threading import Event, Thread
+from threading import Event
+from threading import Thread
 import time
 from typing import Callable
 import uuid

@@ -1,9 +1,7 @@
-from vasiniyo_chat_bot.module.titles.dto import (
-    AdjectiveGroup,
-    CustomTitles,
-    NounGroup,
-    Nouns,
-)
+from vasiniyo_chat_bot.module.titles.dto import AdjectiveGroup
+from vasiniyo_chat_bot.module.titles.dto import CustomTitles
+from vasiniyo_chat_bot.module.titles.dto import NounGroup
+from vasiniyo_chat_bot.module.titles.dto import Nouns
 
 
 class CustomTitlesReader:
