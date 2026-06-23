@@ -17,6 +17,7 @@ class QueryHandler:
     ) -> None:
         in_allowed_chat = Filter(
             lambda call: "*" in allowed_chats
+            or not hasattr(call.message, "chat")
             or str(call.message.chat.id) in allowed_chats
         )
         self.handler = handler
