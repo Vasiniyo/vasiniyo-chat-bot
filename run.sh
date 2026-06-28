@@ -107,7 +107,7 @@ fi
 touch "$LOG_FILE"
 
 if [[ "$RUNTIME_MODE" == "local" ]]; then
-  VENV_DIR=".venv"
+  VENV_DIR="$SCRIPT_DIR/.venv"
   if ! command -v python3 >/dev/null 2>&1; then
       echo "Error: python3 not installed"
       exit 1
@@ -126,8 +126,8 @@ if [[ "$RUNTIME_MODE" == "local" ]]; then
   fi
   python="$VENV_DIR/bin/python"
   "$python" -m pip install --upgrade pip
-  "$python" -m pip install -r requirements.txt
-  "$python" -m pip install -e .
+  "$python" -m pip install -r "$SCRIPT_DIR/requirements.txt"
+  "$python" -m pip install -e "$SCRIPT_DIR"
   export TEST_MODE CONFIG_PATH DATABASE_PATH
   set -a
   test -f "$ENV_FILE" && source "$ENV_FILE"
