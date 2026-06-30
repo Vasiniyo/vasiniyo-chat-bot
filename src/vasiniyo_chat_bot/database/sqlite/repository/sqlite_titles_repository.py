@@ -29,7 +29,6 @@ class SqliteTitlesRepository(SqliteRepository, TitlesRepository):
             if self._titles_bag_dao.find_current(conn, chat_id, user_id):
                 return None
             self._titles_states_dao.save(conn, chat_id, user_id)
-
             titles_entity = self._titles_bag_dao.save(
                 conn,
                 TitlesBagEntity(
@@ -43,12 +42,11 @@ class SqliteTitlesRepository(SqliteRepository, TitlesRepository):
 
         return self.transaction(_tx)
 
-    def update_last_changing(self, chat_id: int, user_id: int) -> None:
-        self.transaction(
-            lambda conn: self._titles_states_dao.update_last_changing(
-                conn, chat_id=chat_id, user_id=user_id
-            )
-        )
+    def update_attempt(self, chat_id: int, user_id: int) -> None:
+        def _tx(conn: Connection) -> None:
+            self._update_attempt(conn, chat_id, user_id)
+
+        return self.transaction(_tx)
 
     def find_user_title(self, chat_id: int, user_id: int) -> str | None:
         def _tx(conn: Connection) -> str | None:
@@ -83,15 +81,22 @@ class SqliteTitlesRepository(SqliteRepository, TitlesRepository):
 
     def get_title_after_touch(self, chat_id: int, user_id: int) -> str | None:
         def _tx(conn: Connection):
-            self._titles_states_dao.update_last_changing(conn, chat_id, user_id)
+            self._update_attempt(conn, chat_id, user_id)
             return self._titles_bag_dao.find_current(conn, chat_id, user_id).user_title
 
         return self.transaction(_tx)
 
-    def is_day_passed(self, chat_id: int, user_id: int) -> bool:
-        return self.transaction(
-            lambda conn: self._titles_states_dao.is_day_passed(conn, chat_id, user_id)
-        )
+    def get_rolls_remaining(self, chat_id: int, user_id: int) -> tuple[bool, int]:
+        def _tx(conn: Connection) -> tuple[bool, int]:
+            is_day_passed = self._titles_states_dao.is_day_passed(
+                conn, chat_id, user_id
+            )
+            extra_rolls = self._titles_states_dao.get_extra_rolls(
+                conn, chat_id, user_id
+            )
+            return is_day_passed, extra_rolls
+
+        return self.transaction(_tx)
 
     def set_current(self, chat_id: int, user_id: int, title_bag_id: int) -> str | None:
         def _tx(conn: Connection) -> str | None:
@@ -127,13 +132,13 @@ class SqliteTitlesRepository(SqliteRepository, TitlesRepository):
                     is_inventory=False,
                 ),
             )
-            self._titles_states_dao.update_last_changing(conn, chat_id, user_id)
+            self._update_attempt(conn, chat_id, user_id)
             return entity.user_title
 
         return self.transaction(_tx)
 
     def steal_logic(
-        self, chat_id, user_id: int, title_id: int
+        self, chat_id: int, user_id: int, title_id: int
     ) -> tuple[tuple[int | None, str | None], tuple[int | None, str | None]]:
         def _tx(
             conn: Connection,
@@ -141,7 +146,7 @@ class SqliteTitlesRepository(SqliteRepository, TitlesRepository):
             target_title = self._titles_bag_dao.find_by_id(conn, title_id)
             if target_title is None or target_title.user_id == user_id:
                 return (user_id, None), (None, None)
-            self._titles_states_dao.update_last_changing(conn, chat_id, user_id)
+            self._update_attempt(conn, chat_id, user_id)
             self._titles_states_dao.save(conn, chat_id, target_title.user_id)
             cur_user_title = self._titles_bag_dao.find_current(conn, chat_id, user_id)
             if cur_user_title:
@@ -166,7 +171,9 @@ class SqliteTitlesRepository(SqliteRepository, TitlesRepository):
                 conn, chat_id, target_user_id, True
             )
             if not target_inventory_titles:
-                self._titles_states_dao.remove(conn, chat_id, target_user_id)
+                self._titles_states_dao.increase_extra_rolls(
+                    conn, chat_id, target_user_id
+                )
                 return (
                     (next_user_title.user_id, next_user_title.user_title),
                     (target_title.user_id, None),
@@ -211,3 +218,28 @@ class SqliteTitlesRepository(SqliteRepository, TitlesRepository):
             return entity.user_title
 
         return self.transaction(_tx)
+
+    def exchange_title(
+        self, chat_id: int, user_id: int, title_bag_id: int
+    ) -> tuple[str | None, int]:
+        def _tx(conn: Connection) -> tuple[str | None, int]:
+            entity = self._titles_bag_dao.find_by_id(conn, title_bag_id)
+            if not entity:
+                return None, 0
+            if entity.chat_id != chat_id or not entity.is_inventory:
+                return None, 0
+            self._titles_bag_dao.remove_by_id(conn, entity.id)
+            extra_rolls = self._titles_states_dao.increase_extra_rolls(
+                conn, chat_id, user_id
+            )
+            return entity.user_title, extra_rolls
+
+        return self.transaction(_tx)
+
+    def _update_attempt(self, conn: Connection, chat_id: int, user_id: int) -> None:
+        if self._titles_states_dao.is_day_passed(conn, chat_id, user_id):
+            self._titles_states_dao.update_last_changing(
+                conn, chat_id=chat_id, user_id=user_id
+            )
+        else:
+            self._titles_states_dao.decrease_extra_rolls(conn, chat_id, user_id)

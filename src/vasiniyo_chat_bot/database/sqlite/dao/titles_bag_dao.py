@@ -117,7 +117,7 @@ class TitlesBagDAO:
         )
 
     @staticmethod
-    def find_current(conn, chat_id, user_id) -> TitlesBagEntity:
+    def find_current(conn, chat_id, user_id) -> TitlesBagEntity | None:
         row = SQLiteDao.fetchone(
             conn,
             """

@@ -22,7 +22,7 @@ from vasiniyo_chat_bot.module.user_service import UserService
 def _require_daily_action(func):
     @wraps(func)
     def wrapper(self: TitlesController, ctx: CallbackContext, *args, **kwargs):
-        if self._titles_service.is_day_passed(ctx.chat_id, ctx.user_id):
+        if self._titles_service.is_roll_remaining(ctx.chat_id, ctx.user_id):
             return func(self, ctx, *args, **kwargs)
         response = self._response_factory.already_rolled()
         self._renderer.edit(response, ctx)
@@ -102,6 +102,10 @@ class TitlesController:
                 self._handle_show_gift_title_menu(ctx, payload.target_id, payload.page)
             case Action.GIVE_TITLE:
                 self._give_title(ctx, payload.target_id, payload.title_bag_id)
+            case Action.OPEN_EXCHANGE_TITLE_MENU:
+                self._exchange_title_menu(ctx, payload.page)
+            case Action.EXCHANGE_TITLE:
+                self._handle_exchange_title(ctx, payload.title_bag_id)
 
     def _set_title(self, title_changed: TitleChanged, ctx: UserContext) -> Response:
         are_set = title_changed.changed and (
@@ -190,6 +194,13 @@ class TitlesController:
         response = self._response_factory.inventory(titles_bag_menu)
         self._renderer.edit(response, ctx)
 
+    def _exchange_title_menu(self, ctx: UserContext, page: int, page_size: int = 20):
+        titles_bag_menu = self._titles_service.handle_exchange_title(
+            ctx.chat_id, ctx.user_id, page, page_size
+        )
+        response = self._response_factory.exchange_menu(titles_bag_menu)
+        self._renderer.edit(response, ctx)
+
     def _handle_swap_title(self, ctx: UserContext, title_bag_id: int):
         result = self._titles_service.handle_swap_title(
             ctx.chat_id, ctx.user_id, title_bag_id
@@ -234,4 +245,9 @@ class TitlesController:
             )
         else:
             response = self._response_factory.title_invalid()
+        self._renderer.edit(response, ctx)
+
+    def _handle_exchange_title(self, ctx: UserContext, title_id: int):
+        result = self._titles_service.exchange_title(ctx.chat_id, ctx.user_id, title_id)
+        response = self._response_factory.title_exchanged(result)
         self._renderer.edit(response, ctx)

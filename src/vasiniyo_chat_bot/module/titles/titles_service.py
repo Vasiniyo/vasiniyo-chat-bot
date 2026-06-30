@@ -1,5 +1,6 @@
 from typing import Callable
 
+from vasiniyo_chat_bot.module.titles.dto import ExchangeTitleMenu
 from vasiniyo_chat_bot.module.titles.dto import GiftRecipientInfo
 from vasiniyo_chat_bot.module.titles.dto import GiftRecipientsMenu
 from vasiniyo_chat_bot.module.titles.dto import GiftTitlesMenu
@@ -7,6 +8,7 @@ from vasiniyo_chat_bot.module.titles.dto import RenameMenu
 from vasiniyo_chat_bot.module.titles.dto import StealMenu
 from vasiniyo_chat_bot.module.titles.dto import StealResult
 from vasiniyo_chat_bot.module.titles.dto import TitleChanged
+from vasiniyo_chat_bot.module.titles.dto import TitleExchanged
 from vasiniyo_chat_bot.module.titles.dto import TitleInfo
 from vasiniyo_chat_bot.module.titles.dto import TitlesBagItemView
 from vasiniyo_chat_bot.module.titles.dto import TitlesBagMenu
@@ -36,22 +38,37 @@ class TitlesService:
         return self.show_rename_menu(chat_id, user_id)
 
     def show_rename_menu(self, chat_id: int, user_id: int) -> RenameMenu:
-        if self.is_day_passed(chat_id, user_id):
+        if self.is_roll_remaining(chat_id, user_id):
             title = self._get_next_title(chat_id, user_id)
             return RenameMenu(
-                title=title, d6=True, random_d6=True, steal_menu=True, titles_bag=True
+                title=title,
+                d6=True,
+                random_d6=True,
+                steal_menu=True,
+                exchange_menu=True,
+                titles_bag=True,
             )
         return RenameMenu(
-            title=None, d6=False, random_d6=False, steal_menu=False, titles_bag=True
+            title=None,
+            d6=False,
+            random_d6=False,
+            steal_menu=False,
+            exchange_menu=True,
+            titles_bag=True,
         )
 
     def show_steal_menu(
         self, chat_id: int, user_id: int, page: int, page_size: int
     ) -> StealMenu | RenameMenu:
         page = page if page > 0 else 0
-        if not self.is_day_passed(chat_id, user_id):
+        if not self.is_roll_remaining(chat_id, user_id):
             return RenameMenu(
-                title=None, d6=False, random_d6=False, steal_menu=False, titles_bag=True
+                title=None,
+                d6=False,
+                random_d6=False,
+                steal_menu=False,
+                exchange_menu=True,
+                titles_bag=True,
             )
         rows = list(self._titles_repository.get_user_titles(chat_id))
         counts = {}
@@ -94,7 +111,7 @@ class TitlesService:
             target_title = target_title or "украдено"
         else:
             actor_title, target_id, target_title = None, None, None
-            self._titles_repository.update_last_changing(chat_id, user_id)
+            self._titles_repository.update_attempt(chat_id, user_id)
         return StealResult(
             actor_id=user_id,
             target_id=target_id,
@@ -134,6 +151,17 @@ class TitlesService:
             page=page,
             has_prev_pages=page > 0,
             has_more_pages=end_page < len(titles),
+        )
+
+    def handle_exchange_title(
+        self, chat_id: int, user_id: int, page: int, page_size: int
+    ) -> ExchangeTitleMenu:
+        menu = self.handle_show_titles_bag(chat_id, user_id, page, page_size)
+        return ExchangeTitleMenu(
+            items=menu.items,
+            page=menu.page,
+            has_prev_pages=menu.has_prev_pages,
+            has_more_pages=menu.has_more_pages,
         )
 
     def handle_swap_title(
@@ -206,11 +234,24 @@ class TitlesService:
         title = self._titles_repository.set_inventory(chat_id, user_id, title_bag_id)
         return TitleChanged(title, changed=title is not None)
 
+    def exchange_title(
+        self, chat_id: int, user_id: int, title_bag_id: int
+    ) -> TitleExchanged:
+        title, extra_roll = self._titles_repository.exchange_title(
+            chat_id, user_id, title_bag_id
+        )
+        return TitleExchanged(
+            title=title, extra_rolls=extra_roll, changed=title is not None
+        )
+
     def is_valid_title(self, chat_id: int, user_id: int, title_bag_id: int) -> bool:
         return self._titles_repository.exists(chat_id, user_id, title_bag_id)
 
-    def is_day_passed(self, chat_id: int, user_id: int) -> bool:
-        return self._titles_repository.is_day_passed(chat_id, user_id)
+    def is_roll_remaining(self, chat_id: int, user_id: int) -> bool:
+        is_day_passed, extra_rolls = self._titles_repository.get_rolls_remaining(
+            chat_id, user_id
+        )
+        return is_day_passed or extra_rolls > 0
 
     def _get_next_title(self, chat_id: int, user_id: int):
         key = daily_hash(chat_id + user_id)
