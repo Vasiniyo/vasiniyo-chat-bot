@@ -51,6 +51,7 @@ class RenameMenu(Menu):
     d6: bool
     random_d6: bool
     steal_menu: bool
+    exchange_menu: bool
     titles_bag: bool
 
 
@@ -88,6 +89,13 @@ class TitleChanged:
 
 
 @dataclass(frozen=True)
+class TitleExchanged:
+    title: str | None
+    extra_rolls: int
+    changed: bool
+
+
+@dataclass(frozen=True)
 class GiftRecipientInfo:
     user_id: int
     username: str | None = None
@@ -121,6 +129,11 @@ class TitlesBagItemView:
 
 @dataclass(frozen=True)
 class TitlesBagMenu(Pageable, Menu):
+    items: list[TitlesBagItemView]
+
+
+@dataclass(frozen=True)
+class ExchangeTitleMenu(Pageable, Menu):
     items: list[TitlesBagItemView]
 
 

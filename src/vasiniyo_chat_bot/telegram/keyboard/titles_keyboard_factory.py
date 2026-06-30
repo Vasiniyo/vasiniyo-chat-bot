@@ -3,6 +3,7 @@ from telebot.types import InlineKeyboardButton
 from telebot.types import InlineKeyboardMarkup
 
 from vasiniyo_chat_bot.module.dto import Pageable
+from vasiniyo_chat_bot.module.titles.dto import ExchangeTitleMenu
 from vasiniyo_chat_bot.module.titles.dto import GiftRecipientInfo
 from vasiniyo_chat_bot.module.titles.dto import GiftRecipientsMenu
 from vasiniyo_chat_bot.module.titles.dto import GiftTitlesMenu
@@ -54,6 +55,13 @@ class TitlesKeyboardFactory:
                     ),
                 )
             )
+            if rename_menu.exchange_menu:
+                markup.add(
+                    InlineKeyboardButton(
+                        "Распыление",
+                        callback_data=self._payload_factory.exchange_menu(0, user_id),
+                    )
+                )
             markup.add(
                 InlineKeyboardButton(
                     "Инвентарь",
@@ -123,6 +131,26 @@ class TitlesKeyboardFactory:
             markup.add(*navigation)
         markup.add(self._rename_menu(user_id))
         return markup
+
+    def exchange_menu(self, titles_bag: ExchangeTitleMenu, user_id: int):
+        markup = InlineKeyboardMarkup()
+        buttons = [self._exchange_title(item) for item in titles_bag.items]
+        groups = [buttons[i : i + 2] for i in range(0, len(buttons), 2)]
+        for group in groups:
+            markup.add(*group)
+        navigation = self._exchange_menu_navigation(titles_bag, user_id)
+        if navigation:
+            markup.add(*navigation)
+        markup.add(self._rename_menu(user_id))
+        return markup
+
+    def _exchange_title(self, item: TitlesBagItemView) -> InlineKeyboardButton:
+        return InlineKeyboardButton(
+            item.title,
+            callback_data=self._payload_factory.exchange_title(
+                item.titles_bag_id, item.user_id
+            ),
+        )
 
     def _empty_button(self, text=" ") -> InlineKeyboardButton:
         return InlineKeyboardButton(text, callback_data=self._payload_factory.empty())
@@ -257,6 +285,30 @@ class TitlesKeyboardFactory:
                 InlineKeyboardButton(
                     "➡️",
                     callback_data=self._payload_factory.titles_bag_menu(
+                        titles_bag.page + 1, user_id
+                    ),
+                )
+            )
+        return navigation
+
+    def _exchange_menu_navigation(
+        self, titles_bag: Pageable, user_id: int
+    ) -> list[InlineKeyboardButton]:
+        navigation = []
+        if titles_bag.has_prev_pages:
+            navigation.append(
+                InlineKeyboardButton(
+                    "⬅️",
+                    callback_data=self._payload_factory.exchange_menu(
+                        titles_bag.page - 1, user_id
+                    ),
+                )
+            )
+        if titles_bag.has_more_pages:
+            navigation.append(
+                InlineKeyboardButton(
+                    "➡️",
+                    callback_data=self._payload_factory.exchange_menu(
                         titles_bag.page + 1, user_id
                     ),
                 )

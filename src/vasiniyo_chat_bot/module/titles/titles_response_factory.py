@@ -4,12 +4,14 @@ from vasiniyo_chat_bot.module.dto import InlineCodeTemplate
 from vasiniyo_chat_bot.module.dto import Response
 from vasiniyo_chat_bot.module.dto import TextTemplate
 from vasiniyo_chat_bot.module.dto import UserTemplate
+from vasiniyo_chat_bot.module.titles.dto import ExchangeTitleMenu
 from vasiniyo_chat_bot.module.titles.dto import GiftRecipientsMenu
 from vasiniyo_chat_bot.module.titles.dto import GiftTitlesMenu
 from vasiniyo_chat_bot.module.titles.dto import RenameMenu
 from vasiniyo_chat_bot.module.titles.dto import StealMenu
 from vasiniyo_chat_bot.module.titles.dto import StealResult
 from vasiniyo_chat_bot.module.titles.dto import TitleChanged
+from vasiniyo_chat_bot.module.titles.dto import TitleExchanged
 from vasiniyo_chat_bot.module.titles.dto import TitlesBagMenu
 
 
@@ -151,6 +153,33 @@ class TitlesResponseFactory:
             InlineCodeTemplate(title),
             " пользователю ",
             UserTemplate(chat_id, target_id),
+        ]
+        return Response(text_units=text)
+
+    @staticmethod
+    def exchange_menu(menu: ExchangeTitleMenu) -> Response:
+        text = "Доступные лычки для распыления:"
+        return Response(text_units=text, menu=menu)
+
+    @staticmethod
+    def title_exchanged(result: TitleExchanged) -> Response:
+        if not result.changed:
+            text = [
+                "Не удалось распылить лычку ",
+                InlineCodeTemplate(result.title) if result.title else "",
+                ".",
+            ]
+        else:
+            text = [
+                "Лычка ",
+                InlineCodeTemplate(result.title) if result.title else "",
+                " " if result.title else "",
+                "распылена.",
+            ]
+        text = [
+            *text,
+            "\nДополнительных роллов: ",
+            InlineCodeTemplate(str(result.extra_rolls)),
         ]
         return Response(text_units=text)
 

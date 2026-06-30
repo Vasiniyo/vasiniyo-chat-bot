@@ -29,6 +29,8 @@ class TitlesPayloadFactory:
         Action.GIFT_RECIPIENTS_MENU.value,
         Action.GIFT_TITLE_MENU.value,
         Action.GIVE_TITLE.value,
+        Action.OPEN_EXCHANGE_TITLE_MENU.value,
+        Action.EXCHANGE_TITLE.value,
     }
 
     @staticmethod
@@ -68,6 +70,26 @@ class TitlesPayloadFactory:
         return json.dumps(
             {
                 Field.ACTION_TYPE.value: Action.SET_TITLE_BAG.value,
+                Field.USER_ID.value: user_id,
+                Field.TITLE_BAG_ID.value: title_bag_id,
+            }
+        )
+
+    @staticmethod
+    def exchange_menu(page: int, user_id: int) -> str:
+        return json.dumps(
+            {
+                Field.ACTION_TYPE.value: Action.OPEN_EXCHANGE_TITLE_MENU.value,
+                Field.USER_ID.value: user_id,
+                Field.PAGE.value: page,
+            }
+        )
+
+    @staticmethod
+    def exchange_title(title_bag_id: int, user_id: int) -> str:
+        return json.dumps(
+            {
+                Field.ACTION_TYPE.value: Action.EXCHANGE_TITLE.value,
                 Field.USER_ID.value: user_id,
                 Field.TITLE_BAG_ID.value: title_bag_id,
             }

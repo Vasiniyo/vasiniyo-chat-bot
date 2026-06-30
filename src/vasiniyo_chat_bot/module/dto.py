@@ -78,6 +78,8 @@ class Action(Enum):
     GIFT_RECIPIENTS_MENU = "9"
     GIFT_TITLE_MENU = "a"
     GIVE_TITLE = "b"
+    OPEN_EXCHANGE_TITLE_MENU = "c"
+    EXCHANGE_TITLE = "d"
 
 
 class Field(Enum):

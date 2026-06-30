@@ -10,6 +10,7 @@ from vasiniyo_chat_bot.module.dto import UserContext
 from vasiniyo_chat_bot.module.renderer import Renderer
 from vasiniyo_chat_bot.module.titles.dto import AnimeGenreMenu
 from vasiniyo_chat_bot.module.titles.dto import CaptchaMenu
+from vasiniyo_chat_bot.module.titles.dto import ExchangeTitleMenu
 from vasiniyo_chat_bot.module.titles.dto import GiftRecipientsMenu
 from vasiniyo_chat_bot.module.titles.dto import GiftTitlesMenu
 from vasiniyo_chat_bot.module.titles.dto import RenameMenu
@@ -144,5 +145,7 @@ class TelegramRenderer(Renderer):
             return self._keyboard_factory2.genre_options_markup(user_id)
         elif isinstance(menu, CaptchaMenu):
             return self._keyboard_factory3.update_button(user_id)
+        elif isinstance(menu, ExchangeTitleMenu):
+            return self._keyboard_factory.exchange_menu(menu, user_id)
         else:
             return None
