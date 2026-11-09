@@ -1,20 +1,21 @@
-from vasiniyo_chat_bot.config.bot_settings_reader import CommandInfo
-from vasiniyo_chat_bot.module.help.command_key import CommandKey
+from injector import inject
+
+from vasiniyo_chat_bot.config.dto import BotSettings
+from vasiniyo_chat_bot.module.help.command import CommandInfo
+from vasiniyo_chat_bot.module.help.command import CommandKey
 from vasiniyo_chat_bot.module.play.play_controller import PlayController
+from vasiniyo_chat_bot.telegram.bot_service import BotService
 from vasiniyo_chat_bot.telegram.feature.feature import Feature
 
 
+@inject
 class PlayFeature(Feature):
     def __init__(
-        self,
-        bot_username: str,
-        allowed_chats: list[str],
-        controller: PlayController | None,
-        commands: dict[CommandKey, CommandInfo],
+        self, settings: BotSettings, bot_service: BotService, controller: PlayController
     ):
         self._controller = controller
         super().__init__(
-            bot_username, allowed_chats, all_commands=self._all_commands(commands)
+            settings, bot_service, all_commands=self._all_commands(settings.commands)
         )
 
     def _all_commands(self, commands: dict[CommandKey, CommandInfo]):

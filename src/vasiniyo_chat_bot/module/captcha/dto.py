@@ -1,4 +1,10 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
+
+from injector import inject
+
+from vasiniyo_chat_bot.module.dto import Menu
 
 
 @dataclass(frozen=True)
@@ -19,6 +25,7 @@ class Validate:
     bar_length: int
 
 
+@inject
 @dataclass(frozen=True)
 class Captcha:
     gen: Gen
@@ -33,3 +40,7 @@ class CaptchaUser:
     failed_attempts: int
     time_left: int
     answer: str
+
+
+@dataclass(frozen=True)
+class CaptchaMenu(Menu): ...

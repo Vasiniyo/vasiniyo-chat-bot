@@ -5,15 +5,17 @@ import logging
 from PIL import Image
 from PIL import ImageOps
 from captcha.image import ImageCaptcha
+from injector import inject
 
 from vasiniyo_chat_bot.module.captcha.dto import Captcha
+from vasiniyo_chat_bot.module.captcha.dto import CaptchaMenu
 from vasiniyo_chat_bot.module.captcha.dto import CaptchaUser
 from vasiniyo_chat_bot.module.dto import Response
-from vasiniyo_chat_bot.module.titles.dto import CaptchaMenu
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
+@inject
 class CaptchaResponseFactory:
     def __init__(self, captcha_properties: Captcha):
         self._captcha_properties = captcha_properties

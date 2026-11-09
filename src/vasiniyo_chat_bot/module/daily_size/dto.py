@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 
+from injector import inject
 
+
+@inject
 @dataclass(frozen=True)
 class DailySizeSettings:
     labels: list[str]

@@ -1,41 +1,15 @@
-from enum import Enum
 import logging
 import traceback
-from typing import TypedDict
 
 from telebot.types import CallbackQuery
 from telebot.types import Message
 
 
-class RollType(Enum):
-    ROLL_INSTANT = 1
-    ROLL_READY = 2
-    GIVE_OLD = 3
-    WAIT = 4
-
-
-class RolledDice(TypedDict):
-    value: int
-    expected_value: int
-    win_values: list[int]
-    success: bool
-
-
-class LogDetails(TypedDict, total=False):
-    call: CallbackQuery
-    message: Message
-    user_id: int
-    chat_id: int
-    details: str
-    roll_type: RollType
-    dice: RolledDice
-
-
 def shorten(text) -> str:
     text = str(text)
-    limit = 25
-    part = (limit - 3) // 2
-    return text if len(text) <= limit else f"{text[:part]}...{text[-part:]}"
+    limit = 28
+    part = (limit - 1) // 2
+    return text if len(text) <= limit + 3 else f"{text[:part]}...{text[-part:]}"
 
 
 class LogFormatter(logging.Formatter):
@@ -53,36 +27,45 @@ class LogFormatter(logging.Formatter):
                 match k:
                     case "tg_call":
                         if isinstance(v, CallbackQuery):
-                            extras.append(f"chat_id={v.message.chat.id!r}")
+                            if v.message:
+                                extras.append(f"chat_id={v.message.chat.id!r}")
+                                extras.append(f"message_id={v.message.id!r}")
                             extras.append(f"call_id={v.id!r}")
                             extras.append(f"call_data={v.data!r}")
-                            extras.append(f"message_id={v.message.id!r}")
                             extras.append(f"user_id={v.from_user.id!r}")
                             if record.levelno != logging.INFO:
-                                extras.append(f"chat_id={v.message.chat.id!r}")
-                                extras.append(f"chat_title={v.message.chat.title!r}")
-                                extras.append(f"chat_type={v.message.chat.type!r}")
-                                extras.append(f"message_text={v.message.text!r}")
+                                if v.message:
+                                    extras.append(
+                                        f"chat_title={v.message.chat.title!r}"
+                                    )
+                                    extras.append(f"chat_type={v.message.chat.type!r}")
+                                    extras.append(f"message_text={v.message.text!r}")
                                 extras.append(f"username={v.from_user.username}")
                                 extras.append(f"first_name={v.from_user.first_name}")
                                 extras.append(f"last_name={v.from_user.last_name}")
                                 extras.append(f"is_bot={v.from_user.is_bot}")
                     case "tg_message":
                         if isinstance(v, Message):
+                            extras.append(f"chat_id={v.chat.id!r}")
                             extras.append(f"message_id={v.id!r}")
                             extras.append(f"content_type={v.content_type!r}")
-                            extras.append(f"user_id={v.from_user.id!r}")
+                            if v.from_user:
+                                extras.append(f"user_id={v.from_user.id!r}")
                             if record.levelno != logging.INFO:
-                                extras.append(f"chat_id={v.chat.id!r}")
                                 extras.append(f"chat_title={v.chat.title!r}")
                                 extras.append(f"chat_type={v.chat.type!r}")
                                 extras.append(f"message_text={v.text!r}")
-                                extras.append(f"username={v.from_user.username}")
-                                extras.append(f"first_name={v.from_user.first_name}")
-                                extras.append(f"last_name={v.from_user.last_name}")
-                                extras.append(f"is_bot={v.from_user.is_bot}")
+                                if v.from_user:
+                                    extras.append(f"username={v.from_user.username}")
+                                    extras.append(
+                                        f"first_name={v.from_user.first_name}"
+                                    )
+                                    extras.append(f"last_name={v.from_user.last_name}")
+                                    extras.append(f"is_bot={v.from_user.is_bot}")
                     case _:
-                        extras.append(f"{k}={shorten(v)!r}")
+                        if record.levelno == logging.INFO:
+                            v = shorten(v)
+                        extras.append(f"{k}={v!r}")
         extras = " ".join(extras)
         trace = ""
         if record.exc_info:

@@ -4,30 +4,17 @@ import random
 from rapidfuzz import fuzz
 
 
-def find_best_match(input_text: str, match_key: list, simmilarity=80):
-    match_key = match_key[0] if match_key else None
-    match_simmilarity = fuzz.partial_ratio(match_key, input_text)
-
-    if match_simmilarity >= simmilarity:
-        return match_key
-    return input_text
-
-
-def find_matches(input_text: str, category_keys: list, simmilarity=80):
+def find_matches(input_text: str, category_keys: list, similarity=80):
     words = input_text.split()
     match_keys = []
-
     for key in category_keys:
         key_len = len(key.split())
         max_ratio = 0
-
         for i in range(len(words) - key_len + 1):
             substring = " ".join(words[i : i + key_len])
             max_ratio = max(max_ratio, fuzz.ratio(key, substring))
-
-        if max_ratio >= simmilarity:
+        if max_ratio >= similarity:
             match_keys.append(key)
-
     return match_keys
 
 
@@ -63,7 +50,8 @@ def test_match(user_message: str, category_keys: list):
             fillvalue=True,
         ),
     ]
-    return matched or [(None, False)]
+    direct = [m for m in matched if not m[1]]
+    return direct if direct else [m for m in matched if m[1]] or [(None, False)]
 
 
 def __convert_layout(text: str, layout: dict[str, str]) -> str:

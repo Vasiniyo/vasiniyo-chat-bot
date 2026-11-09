@@ -1,3 +1,4 @@
+from injector import inject
 from telebot.types import ChatMemberAdministrator
 from telebot.types import ChatMemberOwner
 
@@ -5,6 +6,7 @@ from vasiniyo_chat_bot.module.play.event_player_service import EventPlayersServi
 from vasiniyo_chat_bot.telegram.bot_service import BotService
 
 
+@inject
 class TelegramEventPlayersService(EventPlayersService):
     def __init__(self, bot_service: BotService):
         self._bot_service = bot_service

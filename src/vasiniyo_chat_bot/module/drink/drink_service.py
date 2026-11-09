@@ -1,9 +1,12 @@
 import random
 
+from injector import inject
+
 from vasiniyo_chat_bot.module.drink.dto import DrinkAdvice
 from vasiniyo_chat_bot.module.drink.dto import Drinks
 
 
+@inject
 class DrinkService:
     def __init__(self, source: list[Drinks]):
         self._source = source

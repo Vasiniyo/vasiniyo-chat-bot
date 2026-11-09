@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 from typing import Callable
 
 from telebot.types import Message
@@ -8,27 +9,27 @@ from vasiniyo_chat_bot.safely_bot_utils import safe_wrapper
 from vasiniyo_chat_bot.telegram.filter import Filter
 from vasiniyo_chat_bot.telegram.mapper.mapper import message_to_context
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 class MessageHandler:
     handler: Callable[[Message], None]
-    kwargs: dict[str, any]
+    kwargs: dict[str, Any]
 
     def __init__(
         self,
         allowed_chats: list[str],
         handler: Callable[[MessageContext], None],
-        validator: Filter[Message] = None,
-        content_types: list[str] = None,
+        validator: Filter[Message] = Filter(lambda _: True),
+        content_types: list[str] | None = None,
     ) -> None:
         in_allowed_chat = Filter(
             lambda m: "*" in allowed_chats or str(m.chat.id) in allowed_chats
         )
         self.handler = self._to_handler(handler)
         self.kwargs = {
-            "func": in_allowed_chat & (validator or Filter(lambda _: True)),
-            "content_types": list(content_types or []) or None,
+            "func": in_allowed_chat & validator,
+            "content_types": content_types,
         }
 
     @staticmethod
@@ -36,15 +37,16 @@ class MessageHandler:
     def _to_handler(
         handler: Callable[[MessageContext], None],
     ) -> Callable[[Message], None]:
-        def inner(message: Message):
+        def handle(message: Message):
             users = message.new_chat_members or [message.from_user]
             for user in users:
                 if user.is_bot:
-                    logger.info(
+                    _logger.info(
                         "new_chat_members",
                         extra={"user_id": user.id, "details": "user is bot, skipping"},
                     )
                     continue
-                handler(message_to_context(message))
+                if ctx := message_to_context(message):
+                    handler(ctx)
 
-        return inner
+        return handle

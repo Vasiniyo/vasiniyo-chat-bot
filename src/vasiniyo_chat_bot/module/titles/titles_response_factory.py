@@ -1,22 +1,23 @@
 from dataclasses import dataclass
+import logging
 
 from vasiniyo_chat_bot.module.dto import InlineCodeTemplate
 from vasiniyo_chat_bot.module.dto import Response
 from vasiniyo_chat_bot.module.dto import TextTemplate
 from vasiniyo_chat_bot.module.dto import UserTemplate
 from vasiniyo_chat_bot.module.titles.dto import ExchangeTitleMenu
+from vasiniyo_chat_bot.module.titles.dto import FailedRollMenu
+from vasiniyo_chat_bot.module.titles.dto import FailedStealMenu
 from vasiniyo_chat_bot.module.titles.dto import GiftRecipientsMenu
 from vasiniyo_chat_bot.module.titles.dto import GiftTitlesMenu
 from vasiniyo_chat_bot.module.titles.dto import RenameMenu
 from vasiniyo_chat_bot.module.titles.dto import StealMenu
-from vasiniyo_chat_bot.module.titles.dto import StealResult
-from vasiniyo_chat_bot.module.titles.dto import TitleChanged
 from vasiniyo_chat_bot.module.titles.dto import TitleExchanged
 from vasiniyo_chat_bot.module.titles.dto import TitlesBagMenu
 
 
 @dataclass(frozen=True)
-class _SetResult:
+class SetResult:
     chat_id: int
     user_id: int
     title: str
@@ -26,7 +27,18 @@ class _SetResult:
 class TitlesResponseFactory:
     @staticmethod
     def rename_menu(rename_menu: RenameMenu) -> Response:
-        text = "Раз в день ты можешь испытать свою удачу и получить шанс поменять свою лычку!"
+        if any(
+            (
+                rename_menu.has_d6_menu,
+                rename_menu.has_random_d6_menu,
+                rename_menu.has_steal_menu,
+                rename_menu.has_exchange_menu,
+                rename_menu.has_titles_bag_menu,
+            )
+        ):
+            text = "Раз в день ты можешь испытать свою удачу и получить шанс поменять свою лычку!"
+            return Response(text_units=text, menu=rename_menu)
+        text = "У тебя буквально ничего нет... Жди завтра 🙂"
         return Response(text_units=text, menu=rename_menu)
 
     @staticmethod
@@ -40,18 +52,25 @@ class TitlesResponseFactory:
         return Response(text_units=text, menu=titles_bag)
 
     @staticmethod
+    def title_not_changed(menu: FailedRollMenu):
+        text = [
+            "Близко-близко! Но не совсем... лычка ",
+            InlineCodeTemplate(menu.title),
+            " ускользнула буквально под носом! Осталось роллов: ",
+            InlineCodeTemplate(str(menu.extra_attempts)),
+        ]
+        return Response(text_units=text, menu=menu)
+
+    @staticmethod
     def title_changed(
-        chat_id: int, user_id: int, result: TitleChanged, are_set: bool = True
+        chat_id: int, user_id: int, title: str, are_set: bool = True
     ) -> Response:
-        if not result.changed:
-            text = "Близко-близко! Но не совсем... Попробуй завтра! 🙂"
-            return Response(text_units=text)
         failed = TitlesResponseFactory._failed_set(
-            [_SetResult(chat_id, user_id, result.title, are_set)]
+            [SetResult(chat_id, user_id, title, are_set)]
         )
         text = [
             "Сегодня твой день! Выпала лычка ",
-            InlineCodeTemplate(result.title),
+            InlineCodeTemplate(title),
             "\n",
             *failed,
         ]
@@ -59,33 +78,35 @@ class TitlesResponseFactory:
 
     @staticmethod
     def title_stolen(
-        chat_id: int,
-        result: StealResult,
-        actor_title_are_set: bool = True,
-        target_title_are_set: bool = True,
+        actor_set_result: SetResult, target_set_result: SetResult
     ) -> Response:
-        if not result.changed:
-            text = "Жулик, не воруй!"
-            return Response(text_units=text)
-        r1 = _SetResult(
-            chat_id, result.actor_id, result.actor_title, actor_title_are_set
+        failed = TitlesResponseFactory._failed_set(
+            [actor_set_result, target_set_result]
         )
-        r2 = _SetResult(
-            chat_id, result.target_id, result.target_title, target_title_are_set
-        )
-        failed = TitlesResponseFactory._failed_set([r1, r2])
         text = [
-            "АХТУНГ, грабёж средь бела дня!!! ",
-            UserTemplate(chat_id, result.actor_id),
+            "АХТУНГ, грабёж средь бела дня!!!\n",
+            UserTemplate(actor_set_result.chat_id, actor_set_result.user_id),
             " украл у ",
-            UserTemplate(chat_id, result.target_id),
+            UserTemplate(target_set_result.chat_id, target_set_result.user_id),
             " лычку: ",
-            InlineCodeTemplate(result.actor_title),
-            "!\n",
-            "Сегодня у пострадавшего будет шанс отыграться!\n",
+            InlineCodeTemplate(actor_set_result.title),
+            "! ",
             *failed,
         ]
         return Response(text_units=text)
+
+    @staticmethod
+    def title_no_stolen(menu: FailedStealMenu):
+        text = [
+            UserTemplate(menu.chat_id, menu.user_id),
+            " попытался украсть у ",
+            UserTemplate(menu.chat_id, menu.target_title.user_id),
+            " лычку: ",
+            InlineCodeTemplate(menu.target_title.title),
+            "! Осталось роллов: ",
+            InlineCodeTemplate(str(menu.extra_attempts)),
+        ]
+        return Response(text_units=text, menu=menu)
 
     @staticmethod
     def title_invalid():
@@ -94,16 +115,15 @@ class TitlesResponseFactory:
 
     @staticmethod
     def inventory_swap(
-        chat_id: int, user_id: int, result: TitleChanged, are_set: bool = True
+        chat_id: int, user_id: int, db_title: str | None, tg_title: str | None
     ) -> Response:
-        if not result.changed:
+        if db_title is None:
             text = "У вас больше нет этой лычки"
             return Response(text_units=text)
-        title = result.title
         failed = TitlesResponseFactory._failed_set(
-            [_SetResult(chat_id, user_id, title, are_set)]
+            [SetResult(chat_id, user_id, db_title, tg_title is not None)]
         )
-        text = ["Изменила лычку на ", InlineCodeTemplate(title), "\n", *failed]
+        text = ["Изменила лычку на ", InlineCodeTemplate(db_title), "\n", *failed]
         return Response(text_units=text)
 
     @staticmethod
@@ -162,33 +182,31 @@ class TitlesResponseFactory:
         return Response(text_units=text, menu=menu)
 
     @staticmethod
+    def title_no_exchanged() -> Response:
+        text = "Не удалось распылить лычку."
+        return Response(text_units=text)
+
+    @staticmethod
     def title_exchanged(result: TitleExchanged) -> Response:
-        if not result.changed:
-            text = [
-                "Не удалось распылить лычку ",
-                InlineCodeTemplate(result.title) if result.title else "",
-                ".",
-            ]
-        else:
-            text = [
-                "Лычка ",
-                InlineCodeTemplate(result.title) if result.title else "",
-                " " if result.title else "",
-                "распылена.",
-            ]
         text = [
-            *text,
+            "Лычка " if len(result.titles) == 1 else "Лычки ",
+            *[
+                unit
+                for i, title in enumerate(title for title in result.titles if title)
+                for unit in ((", " if i > 0 else ""), InlineCodeTemplate(title))
+            ],
+            " распылена." if len(result.titles) == 1 else " распылены.",
             "\nДополнительных роллов: ",
             InlineCodeTemplate(str(result.extra_rolls)),
         ]
         return Response(text_units=text)
 
     @staticmethod
-    def _failed_set(info: list[_SetResult]) -> list[str | TextTemplate]:
+    def _failed_set(info: list[SetResult]) -> list[str | TextTemplate]:
         failed_set = [res for res in info if not res.are_set]
         if not failed_set:
             return [""]
-        result = ["Я не смогла назначить лычки:"]
+        result: list[str | TextTemplate] = ["Я не смогла назначить лычки:"]
         for res in failed_set:
             result.extend(
                 [

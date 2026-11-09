@@ -1,6 +1,8 @@
 import math
 import random
 
+from injector import inject
+
 from .dto import LongMessage
 from .dto import MessageType
 from .dto import StickerResult
@@ -10,6 +12,7 @@ from .dto import TriggerReplies
 from .fuzzy_match.fuzzy_match import choice_one_match
 
 
+@inject
 class ReplyService:
     def __init__(self, long_messages: LongMessage, triggers: TriggerReplies) -> None:
         self._long_message_settings = long_messages
@@ -26,7 +29,9 @@ class ReplyService:
         return self._get_reply(file_id, self._sticker_triggers)
 
     @staticmethod
-    def _get_reply(text, triggers: list[Trigger]) -> TextResult | StickerResult | None:
+    def _get_reply(
+        text: str, triggers: list[Trigger]
+    ) -> TextResult | StickerResult | None:
         possible_replies = []
         reply = None
         for trigger in triggers:

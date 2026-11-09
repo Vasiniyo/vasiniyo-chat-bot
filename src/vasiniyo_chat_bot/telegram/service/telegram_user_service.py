@@ -1,6 +1,6 @@
 import datetime
-from io import BytesIO
 
+from injector import inject
 from telebot.types import ChatMemberBanned
 from telebot.types import ChatMemberLeft
 from telebot.types import User
@@ -10,12 +10,13 @@ from vasiniyo_chat_bot.module.user_service import UserService
 from vasiniyo_chat_bot.telegram.bot_service import BotService
 
 
+@inject
 class TelegramUserService(UserService):
     def __init__(self, client: BotService):
         self._client = client
 
     def get_username(
-        self, chat_id: int, user_id: int, is_active: bool = None
+        self, chat_id: int, user_id: int, is_active: bool = False
     ) -> str | None:
         key = (chat_id, user_id, is_active, datetime.date.today().toordinal())
         value = self._cache.get(key)
@@ -48,7 +49,7 @@ class TelegramUserService(UserService):
         member = self._client.get_chat_member(chat_id, user_id)
         return member.user if member else None
 
-    def get_photo(self, user_id) -> BytesIO | None:
+    def get_photo(self, user_id) -> bytes:
         return self._client.get_profile_photo(user_id)
 
     def ban(self, ctx: UserContext) -> None:

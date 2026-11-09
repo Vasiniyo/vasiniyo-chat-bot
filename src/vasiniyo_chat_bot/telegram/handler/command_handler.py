@@ -3,11 +3,11 @@ import logging
 from telebot.types import Message
 
 from vasiniyo_chat_bot.module.dto import MessageContext
-from vasiniyo_chat_bot.telegram.feature.command import Command
 from vasiniyo_chat_bot.telegram.filter import Filter
+from vasiniyo_chat_bot.telegram.handler.command import Command
 from vasiniyo_chat_bot.telegram.handler.message_handler import MessageHandler
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 class CommandHandler(MessageHandler):
@@ -22,7 +22,7 @@ class CommandHandler(MessageHandler):
 
     def _get_handler(self, command: Command):
         def inner(ctx: MessageContext):
-            logger.info(
+            _logger.info(
                 "handle_command",
                 extra={
                     "command": self._command.info.name,

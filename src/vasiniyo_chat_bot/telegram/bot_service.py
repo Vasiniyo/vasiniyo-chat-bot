@@ -7,6 +7,7 @@ from typing import Callable
 from typing import Literal
 import uuid
 
+from injector import inject
 from telebot import REPLY_MARKUP_TYPES
 from telebot import TeleBot
 from telebot.apihelper import ApiTelegramException
@@ -14,6 +15,7 @@ from telebot.types import ChatMember
 from telebot.types import ChatMemberAdministrator
 from telebot.types import ChatMemberMember
 from telebot.types import File
+from telebot.types import InlineKeyboardMarkup
 from telebot.types import InlineQueryResultArticle
 from telebot.types import InputFile
 from telebot.types import InputMediaPhoto
@@ -23,17 +25,21 @@ from telebot.types import Message
 from telebot.types import ReplyParameters
 
 from vasiniyo_chat_bot.module.dto import BoldTemplate
+from vasiniyo_chat_bot.module.dto import CallbackContext
+from vasiniyo_chat_bot.module.dto import InlineCallbackContext
 from vasiniyo_chat_bot.module.dto import InlineCodeTemplate
 from vasiniyo_chat_bot.module.dto import ItalicTemplate
+from vasiniyo_chat_bot.module.dto import MessageContext
 from vasiniyo_chat_bot.module.dto import TextTemplate
 from vasiniyo_chat_bot.module.dto import UserContext
 from vasiniyo_chat_bot.module.dto import UserTemplate
 from vasiniyo_chat_bot.safely_bot_utils import safe_wrapper
 from vasiniyo_chat_bot.telegram.service.markdown_v2_service import MarkdownV2Service
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
+@inject
 class BotService:
     def __init__(self, bot: TeleBot, formatter: MarkdownV2Service):
         self._bot = bot
@@ -43,26 +49,28 @@ class BotService:
 
     @lru_cache
     def get_me(self):
-        logger.info("bot_get_me")
+        _logger.info("bot_get_me")
         return self._bot.get_me()
 
+    @safe_wrapper(default=None)
     def get_chat_member(self, chat_id: int, user_id: int) -> ChatMember | None:
-        logger.info("get_chat_member", extra={"chat_id": chat_id, "user_id": user_id})
+        _logger.info("get_chat_member", extra={"chat_id": chat_id, "user_id": user_id})
         try:
             return self._bot.get_chat_member(chat_id, user_id)
         except:
-            logger.info(
+            _logger.info(
                 "member_not_found", extra={"chat_id": chat_id, "user_id": user_id}
             )
             return None
 
     @safe_wrapper(default=None)
-    def get_profile_photo(self, user_id: int) -> bytes | None:
+    def get_profile_photo(self, user_id: int) -> bytes:
         file_info = self.get_user_profile_photo_file_info(user_id)
-        if not file_info:
-            return None
-        logger.info("download_file", extra={"file_path": file_info.file_path})
-        return self._bot.download_file(file_info.file_path)
+        file_path = file_info.file_path if file_info else None
+        if not file_path:
+            return bytes(0)
+        _logger.info("download_file", extra={"file_path": file_path})
+        return self._bot.download_file(file_path) or bytes(0)
 
     @safe_wrapper(default=None)
     def get_admin_title(self, ctx: UserContext) -> str | None:
@@ -71,20 +79,20 @@ class BotService:
 
     @safe_wrapper(default=[])
     def get_chat_administrators(self, chat_id: int) -> list[ChatMember]:
-        logger.info("fetch_admins", extra={"chat_id": chat_id})
+        _logger.info("fetch_admins", extra={"chat_id": chat_id})
         return self._bot.get_chat_administrators(chat_id)
 
     @safe_wrapper(default=None)
     def get_user_profile_photo_file_info(self, user_id: int) -> File | None:
-        logger.info("get_user_profile_photo", extra={"user_id": user_id})
+        _logger.info("get_user_profile_photo", extra={"user_id": user_id})
         photo = self._bot.get_user_profile_photos(user_id, limit=1)
         file_id = photo.photos[0][-1].file_id
-        logger.info("get_file", extra={"file_id": file_id})
+        _logger.info("get_file", extra={"file_id": file_id})
         return self._bot.get_file(file_id) if photo.photos else None
 
     @safe_wrapper(default=None)
     def set_title(self, ctx: UserContext, title: str) -> str | None:
-        if len(title) > 16:
+        if title is not None and len(title) > 16:
             return None
         if self.get_admin_title(ctx) == title:
             return title
@@ -93,7 +101,7 @@ class BotService:
         if not isinstance(bot_user, ChatMemberAdministrator):
             return None
         if isinstance(member, ChatMemberAdministrator) and member.can_be_edited:
-            logger.info(
+            _logger.info(
                 "set_custom_title",
                 extra={"chat_id": ctx.chat_id, "user_id": ctx.user_id, "title": title},
             )
@@ -101,7 +109,7 @@ class BotService:
                 ctx.chat_id, ctx.user_id, title
             )
         elif isinstance(member, ChatMemberMember) and bot_user.can_manage_tags:
-            logger.info(
+            _logger.info(
                 "set_member_tag",
                 extra={"chat_id": ctx.chat_id, "user_id": ctx.user_id, "title": title},
             )
@@ -114,9 +122,9 @@ class BotService:
     def edit_message_text_async(
         self,
         text_units: str | list[str | TextTemplate],
-        ctx: UserContext,
-        delay: int | None = 0,
-        reply_markup: REPLY_MARKUP_TYPES | None = None,
+        ctx: MessageContext | CallbackContext,
+        delay: int = 0,
+        reply_markup: InlineKeyboardMarkup | None = None,
         should_edit: Callable[[], bool] = lambda: True,
     ) -> None:
         async def edit_message():
@@ -124,7 +132,7 @@ class BotService:
             if should_edit():
                 self.edit_message_text(text_units, ctx, reply_markup=reply_markup)
 
-        logger.info(
+        _logger.info(
             "schedule editing",
             extra={
                 "chat_id": ctx.chat_id,
@@ -138,12 +146,12 @@ class BotService:
     def edit_message_text(
         self,
         text_units: str | list[str | TextTemplate],
-        ctx: UserContext,
-        reply_markup: REPLY_MARKUP_TYPES | None = None,
+        ctx: MessageContext | CallbackContext,
+        reply_markup: InlineKeyboardMarkup | None = None,
         is_disabled_preview: bool = True,
     ) -> None:
         text = self._to_text(text_units)
-        logger.info(
+        _logger.info(
             "edit_message_text",
             extra={
                 "chat_id": ctx.chat_id,
@@ -155,6 +163,26 @@ class BotService:
             text,
             ctx.chat_id,
             message_id=ctx.message_id,
+            parse_mode="MarkdownV2",
+            link_preview_options=LinkPreviewOptions(is_disabled=is_disabled_preview),
+            reply_markup=reply_markup,
+        )
+
+    @safe_wrapper(default=None)
+    def edit_via_message_text(
+        self,
+        text_units: str | list[str | TextTemplate],
+        ctx: InlineCallbackContext,
+        reply_markup: InlineKeyboardMarkup | None = None,
+        is_disabled_preview: bool = True,
+    ) -> None:
+        text = self._to_text(text_units)
+        _logger.info(
+            "edit_message_text",
+            extra={"inline_message_id": ctx.inline_message_id, "message_text": text},
+        )
+        self._bot.edit_message_text(
+            text,
             inline_message_id=ctx.inline_message_id,
             parse_mode="MarkdownV2",
             link_preview_options=LinkPreviewOptions(is_disabled=is_disabled_preview),
@@ -167,9 +195,9 @@ class BotService:
         chat_id: int,
         message_id: int,
         caption: str,
-        reply_markup: REPLY_MARKUP_TYPES | None = None,
+        reply_markup: InlineKeyboardMarkup | None = None,
     ):
-        logger.info(
+        _logger.info(
             "edit_message_caption",
             extra={"chat_id": chat_id, "message_id": message_id, "caption": caption},
         )
@@ -184,24 +212,24 @@ class BotService:
     def edit_message_media(
         self,
         photo: BytesIO,
-        chat_id: int,
-        message_id: int,
+        ctx: MessageContext | CallbackContext,
         caption: str | None = None,
-        reply_markup: REPLY_MARKUP_TYPES | None = None,
+        reply_markup: InlineKeyboardMarkup | None = None,
     ):
-        logger.info(
-            "edit_message_media", extra={"chat_id": chat_id, "message_id": message_id}
+        _logger.info(
+            "edit_message_media",
+            extra={"chat_id": ctx.chat_id, "message_id": ctx.message_id},
         )
         self._bot.edit_message_media(
             media=InputMediaPhoto(InputFile(photo), caption, "HTML"),
-            chat_id=chat_id,
-            message_id=message_id,
+            chat_id=ctx.chat_id,
+            message_id=ctx.message_id,
             reply_markup=reply_markup,
         )
 
     @safe_wrapper(default=None)
-    def clear_markup(self, ctx: UserContext):
-        logger.info(
+    def clear_markup(self, ctx: MessageContext):
+        _logger.info(
             "clear_message_markup",
             extra={"chat_id": ctx.chat_id, "message_id": ctx.message_id},
         )
@@ -209,8 +237,11 @@ class BotService:
             ctx.chat_id, ctx.message_id, reply_markup=None
         )
 
-    def send_dice(self, emoji: Literal["🎲", "🎯", "🏀", "⚽", "🎰"], ctx: UserContext):
-        logger.info(
+    @safe_wrapper(default=None)
+    def send_dice(
+        self, emoji: Literal["🎲", "🎯", "🏀", "⚽", "🎰"], ctx: MessageContext
+    ):
+        _logger.info(
             "send_dice",
             extra={
                 "chat_id": ctx.chat_id,
@@ -229,7 +260,7 @@ class BotService:
 
     @safe_wrapper(default=None)
     def answer_callback_query(self, text: str, query_id: int) -> None:
-        logger.info(
+        _logger.info(
             "answer_callback_query", extra={"query_id": query_id, "query": text}
         )
         self._bot.answer_callback_query(query_id, text=text, cache_time=3)
@@ -237,11 +268,13 @@ class BotService:
     @safe_wrapper(default=None)
     def answer_inline_query(
         self,
-        commands: list[tuple[str, Callable[[], tuple[str, REPLY_MARKUP_TYPES | None]]]],
+        commands: list[
+            tuple[str, Callable[[], tuple[str, InlineKeyboardMarkup | None]]]
+        ],
         query_id: str,
     ) -> None:
         contents = [(title, get_content()) for (title, get_content) in commands]
-        logger.info("contents", extra={"contents": contents})
+        _logger.info("contents", extra={"contents": contents})
         inline_results = [
             InlineQueryResultArticle(
                 id=str(uuid.uuid4()),
@@ -257,7 +290,7 @@ class BotService:
     def send_message(
         self,
         text_units: str | list[str | TextTemplate],
-        ctx: UserContext,
+        ctx: MessageContext | CallbackContext,
         reply_markup: REPLY_MARKUP_TYPES | None = None,
         is_disabled_preview: bool = True,
     ) -> Message | None:
@@ -267,7 +300,7 @@ class BotService:
             else None
         )
         text = self._to_text(text_units)
-        logger.info(
+        _logger.info(
             "send_message",
             extra={
                 "chat_id": ctx.chat_id,
@@ -286,8 +319,8 @@ class BotService:
         )
 
     @safe_wrapper(default=None)
-    def send_sticker(self, file_id: str, ctx: UserContext) -> None:
-        logger.info(
+    def send_sticker(self, file_id: str, ctx: MessageContext) -> None:
+        _logger.info(
             "send_sticker",
             extra={
                 "chat_id": ctx.chat_id,
@@ -307,13 +340,11 @@ class BotService:
     def send_photo(
         self,
         photo: BytesIO,
-        ctx: UserContext,
-        caption: (
-            str | list[str | UserTemplate | BoldTemplate | ItalicTemplate] | None
-        ) = None,
+        ctx: MessageContext | CallbackContext,
+        caption: str | list[str | TextTemplate] | None = None,
         reply_markup: REPLY_MARKUP_TYPES | None = None,
     ) -> Message:
-        logger.info(
+        _logger.info(
             "send_photo", extra={"chat_id": ctx.chat_id, "message_id": ctx.message_id}
         )
         reply_parameters = (
@@ -332,8 +363,8 @@ class BotService:
         )
 
     @safe_wrapper(default=None)
-    def delete_message(self, ctx: UserContext) -> None:
-        logger.info(
+    def delete_message(self, ctx: MessageContext) -> None:
+        _logger.info(
             f"delete_message",
             extra={"chat_id": ctx.chat_id, "message_id": ctx.message_id},
         )
@@ -341,13 +372,13 @@ class BotService:
 
     @safe_wrapper(default=None)
     def ban_chat_member(self, ctx: UserContext) -> None:
-        logger.info(
+        _logger.info(
             f"ban_chat_member", extra={"chat_id": ctx.chat_id, "user_id": ctx.user_id}
         )
         try:
             self._bot.ban_chat_member(ctx.chat_id, ctx.user_id)
         except ApiTelegramException as e:
-            logger.info(
+            _logger.info(
                 "ban_chat_member_failed",
                 extra={
                     "chat_id": ctx.chat_id,

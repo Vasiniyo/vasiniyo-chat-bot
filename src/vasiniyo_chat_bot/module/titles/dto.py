@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from vasiniyo_chat_bot.module.dto import CallbackContext
+from injector import inject
+
 from vasiniyo_chat_bot.module.dto import Menu
 from vasiniyo_chat_bot.module.dto import Pageable
-from vasiniyo_chat_bot.module.titles.titles_payload_factory import TitlesPayload
 
 
 @dataclass(frozen=True)
@@ -31,6 +31,7 @@ class Nouns:
     neuter: list[NounGroup]
 
 
+@inject
 @dataclass(frozen=True)
 class CustomTitles:
     adjectives: list[AdjectiveGroup]
@@ -38,21 +39,13 @@ class CustomTitles:
 
 
 @dataclass(frozen=True)
-class AnimeGenreMenu(Menu): ...
-
-
-@dataclass(frozen=True)
-class CaptchaMenu(Menu): ...
-
-
-@dataclass(frozen=True)
 class RenameMenu(Menu):
-    title: str | None
-    d6: bool
-    random_d6: bool
-    steal_menu: bool
-    exchange_menu: bool
-    titles_bag: bool
+    rolling_title: str | None
+    has_d6_menu: bool
+    has_random_d6_menu: bool
+    has_steal_menu: bool
+    has_exchange_menu: bool
+    has_titles_bag_menu: bool
 
 
 @dataclass(frozen=True)
@@ -71,28 +64,41 @@ class StealMenu(Menu):
     page: int
     has_prev_pages: bool
     has_more_pages: bool
+    has_return_button: bool = True
 
 
 @dataclass(frozen=True)
-class StealResult:
-    actor_id: int
-    target_id: int
-    target_title: str
-    actor_title: str
-    changed: bool
+class FailedStealMenu(Menu):
+    chat_id: int
+    user_id: int
+    extra_attempts: int
+    target_title: TitleInfo
+    has_exchange_menu: bool
 
 
 @dataclass(frozen=True)
-class TitleChanged:
+class FailedRollMenu(Menu):
     title: str
-    changed: bool
+    extra_attempts: int
+    has_exchange_menu: bool
+
+
+@dataclass(frozen=True)
+class Title:
+    user_id: int | None
+    value: str | None
+
+
+@dataclass(frozen=True)
+class SuccessSteal:
+    actor_title: Title
+    target_title: Title
 
 
 @dataclass(frozen=True)
 class TitleExchanged:
-    title: str | None
+    titles: list[str]
     extra_rolls: int
-    changed: bool
 
 
 @dataclass(frozen=True)
@@ -108,6 +114,7 @@ class GiftRecipientsMenu(Menu):
     page: int
     has_prev_pages: bool
     has_more_pages: bool
+    has_return_button: bool = True
 
 
 @dataclass(frozen=True)
@@ -118,6 +125,7 @@ class GiftTitlesMenu(Menu):
     page: int
     has_prev_pages: bool
     has_more_pages: bool
+    has_return_button: bool = True
 
 
 @dataclass(frozen=True)
@@ -135,8 +143,3 @@ class TitlesBagMenu(Pageable, Menu):
 @dataclass(frozen=True)
 class ExchangeTitleMenu(Pageable, Menu):
     items: list[TitlesBagItemView]
-
-
-@dataclass(frozen=True)
-class TitlesCallbackContext(CallbackContext):
-    payload: TitlesPayload

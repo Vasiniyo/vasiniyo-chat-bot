@@ -2,12 +2,15 @@ import datetime
 from functools import wraps
 import json
 import logging
+import time
 from typing import Callable
 from typing import TypeVar
 
+from telebot.apihelper import ApiTelegramException
+
 from vasiniyo_chat_bot.module.dto import Field
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 F = TypeVar("F", bound=Callable[..., object])
 
@@ -20,8 +23,22 @@ def safe_wrapper(
         def wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
+            except ApiTelegramException as e:
+                retry_after = e.result_json.get("parameters", {}).get(
+                    "retry_after", None
+                )
+                if retry_after is not None:
+                    _logger.warning(
+                        f"Too Many Requests. Retrying after {retry_after}s."
+                    )
+                    time.sleep(retry_after + 1)
+                    try:
+                        return func(*args, **kwargs)
+                    except:
+                        _logger.exception(message)
+                        return default
             except:
-                logger.exception(message)
+                _logger.exception(message)
                 return default
 
         return wrapper
@@ -31,8 +48,9 @@ def safe_wrapper(
 
 @safe_wrapper(default=None)
 def extract_field(payload: dict[str, int | str], field: Field):
-    if str(payload.get(field.value)).lstrip("-").isdigit():
-        return int(payload.get(field.value))
+    value = str(payload.get(field.value)).lstrip("-")
+    if value.isdigit():
+        return int(value)
     return None
 
 

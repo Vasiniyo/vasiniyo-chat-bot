@@ -1,10 +1,13 @@
 import random
 
-from vasiniyo_chat_bot.module.dto import UserContext
+from injector import inject
+
+from vasiniyo_chat_bot.module.dto import MessageContext
 from vasiniyo_chat_bot.module.titles.dice_service import DiceService
 from vasiniyo_chat_bot.telegram.bot_service import BotService
 
 
+@inject
 class TelegramDiceService(DiceService):
     _dices = {
         "⚽": {"weight": 25, "win_values": (3, 4, 5)},
@@ -19,12 +22,12 @@ class TelegramDiceService(DiceService):
         self._dice_keys = list(self._dices.keys())
         self._dice_weights = [self._dices[item]["weight"] for item in self._dice_keys]
 
-    def roll_match(self, expected_value: int, ctx: UserContext) -> bool:
+    def roll_match(self, expected_value: int, ctx: MessageContext) -> bool:
         self._client.clear_markup(ctx)
         dice_message = self._client.send_dice("🎲", ctx)
         return dice_message.dice.value == expected_value
 
-    def roll_random(self, ctx: UserContext) -> bool:
+    def roll_random(self, ctx: MessageContext) -> bool:
         emoji = random.choices(self._dice_keys, weights=self._dice_weights)[0]
         self._client.clear_markup(ctx)
         dice_message = self._client.send_dice(emoji, ctx)

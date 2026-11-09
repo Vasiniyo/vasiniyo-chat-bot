@@ -1,25 +1,25 @@
 import logging
-import os
 import signal
 import sys
 import time
 
 from requests.exceptions import RequestException
+from telebot import TeleBot
 from telebot.types import BotCommand
 from urllib3.exceptions import HTTPError
 
-from vasiniyo_chat_bot.config.config import load_all
-from vasiniyo_chat_bot.database.sqlite.repository.dto import SqliteDatabaseSettings
+from vasiniyo_chat_bot.config.dto import BotSettings
+from vasiniyo_chat_bot.di import container
 from vasiniyo_chat_bot.event_queue import start_ticking_if_needed
 from vasiniyo_chat_bot.logger.logger import LogFormatter
-from vasiniyo_chat_bot.migration import sqlite_migration
-from vasiniyo_chat_bot.telegram.dispatcher import BotFeatureRegistry
+from vasiniyo_chat_bot.module.reply.dto import TriggerReplies
+from vasiniyo_chat_bot.telegram.feature_registry import FeatureRegistry
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 def sigint_handler(_, __):
-    logger.info("stop_polling")
+    _logger.info("stop_polling")
     sys.exit(0)
 
 
@@ -38,11 +38,25 @@ def main():
     logging.basicConfig(level=logging.INFO, handlers=[logger_handler])
     signal.signal(signal.SIGINT, sigint_handler)
     start_ticking_if_needed()
-    config_path = os.environ.get("CONFIG_PATH")
-    config_ = load_all(config_path)
-    for reply in config_.trigger_replies.text_replies:
+    bot = container.get(TeleBot)
+    registry = container.get(FeatureRegistry)
+    for handler in registry.message_handlers():
+        bot.message_handler(**handler.kwargs)(handler.handler)
+    for handler in registry.callback_query_handlers():
+        bot.callback_query_handler(**handler.kwargs)(handler.handler)
+    if inline_handler := registry.inline_handler():
+        bot.inline_handler(**inline_handler.kwargs)(inline_handler.handler)
+    my_commands = registry.my_commands()
+    bot.set_my_commands(
+        [BotCommand(title, desc) for title, desc in my_commands.items()]
+    )
+    for mod in container.get(BotSettings).mods:
+        _logger.info("module_enabled", extra={"mod": mod})
+    for command in sorted(my_commands.keys()):
+        _logger.info("command_enabled", extra={"command": command})
+    for reply in container.get(TriggerReplies).text_replies:
         for response in reply.responses:
-            logger.info(
+            _logger.info(
                 f"reply_loaded",
                 extra={
                     "response_type": reply.response_type.name,
@@ -53,42 +67,37 @@ def main():
                     "responses": response,
                 },
             )
-    if isinstance(config_.database, SqliteDatabaseSettings):
-        sqlite_migration.apply_migrations(config_.database.database_path)
-    bot = config_.bot_settings.bot
-    factory = BotFeatureRegistry(config_)
-    for handler in factory.message_handlers():
-        bot.message_handler(**handler.kwargs)(handler.handler)
-    for handler in factory.callback_query_handlers():
-        bot.callback_query_handler(**handler.kwargs)(handler.handler)
-    if inline_handler := factory.inline_handler():
-        bot.inline_handler(**inline_handler.kwargs)(inline_handler.handler)
-    my_commands = factory.my_commands()
-    bot.set_my_commands(
-        [BotCommand(title, desc) for title, desc in my_commands.items()]
-    )
-    for command in sorted(my_commands.keys()):
-        logger.info("command_enabled", extra={"command": command})
+    for reply in container.get(TriggerReplies).sticker_replies:
+        for response in reply.responses:
+            _logger.info(
+                f"reply_loaded",
+                extra={
+                    "response_type": reply.response_type.name,
+                    "chance": reply.chance,
+                    "to_target": reply.to_target,
+                    "fuzzy": reply.fuzzy,
+                    "request": reply.request,
+                    "responses": response,
+                },
+            )
     bot.delete_webhook(drop_pending_updates=True)
-    if "test" in config_.bot_settings.mods:
-        logger.info("test_mode_enabled")
     while True:
         try:
-            logger.info("start_polling")
+            _logger.info("start_polling")
             bot.polling()
         except KeyboardInterrupt:
-            logger.info("bot_stopped", extra={"reason": "Stopped by user"})
+            _logger.info("bot_stopped", extra={"reason": "Stopped by user"})
             break
         except (RequestException, HTTPError):
             sleep_time = 5
-            logger.error(
+            _logger.error(
                 "bot_paused",
                 extra={"reason": "Network error", "sleep_time": sleep_time},
             )
             time.sleep(sleep_time)
         except:
             sleep_time = 5
-            logger.exception(
+            _logger.exception(
                 "bot_paused",
                 extra={"reason": "Unknown error", "sleep_time": sleep_time},
             )

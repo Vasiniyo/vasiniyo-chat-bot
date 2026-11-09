@@ -1,21 +1,20 @@
 from io import BytesIO
-from pathlib import Path
 import random
 
 from PIL import Image
+from injector import inject
 
-from vasiniyo_chat_bot.module.play.dto import Picture
+from vasiniyo_chat_bot.module.play.dto import Event
 
 
+@inject
 class ImageService:
-    def __init__(self, default_winner_avatar: Path, winner_pictures: list[Picture]):
-        self._default_winner_avatar = default_winner_avatar
-        self._winner_pictures = winner_pictures
+    def __init__(self, event: Event):
+        self._default_winner_avatar = (event.default_winner_avatar,)
+        self._winner_pictures = event.winner_pictures
 
     def create_picture(self, profile_photo: bytes) -> BytesIO:
-        avatar = (
-            BytesIO(profile_photo) if profile_photo else self._default_winner_avatar
-        )
+        avatar = BytesIO(profile_photo or self._default_winner_avatar.read_bytes())
         if not self._winner_pictures:
             return avatar
         settings = random.choice(self._winner_pictures)

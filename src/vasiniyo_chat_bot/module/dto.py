@@ -6,16 +6,26 @@ from io import BytesIO
 
 
 @dataclass(frozen=True)
+class Payload:
+    action: Action
+    user_id: int
+    genre: AnimeGenre | None = None
+    dice_value: int | None = None
+    page: int | None = None
+    target_id: int | None = None
+    title_bag_id: int | None = None
+
+
+@dataclass(frozen=True)
 class UserContext:
     user_id: int
-    chat_id: int | None
-    message_id: int | None
-    inline_message_id: str | None
+    chat_id: int
 
 
 @dataclass(frozen=True)
 class MessageContext(UserContext):
-    prev: UserContext | None
+    message_id: int
+    prev: MessageContext | None
     file_id: str | None
     text: str | None
 
@@ -23,13 +33,24 @@ class MessageContext(UserContext):
 @dataclass(frozen=True)
 class CallbackContext(UserContext):
     callback_id: int
+    message_id: int | str
+    payload: Payload | None
 
 
 @dataclass(frozen=True)
 class InlineCallbackContext:
+    callback_id: int
+    user_id: int
+    chat_id: int
+    inline_message_id: str
+    payload: Payload | None
+
+
+@dataclass(frozen=True)
+class InlineQueryContext:
+    callback_id: str
     user_id: int
     query: str
-    callback_id: str
 
 
 @dataclass(frozen=True)
@@ -98,7 +119,36 @@ class Pageable:
     has_prev_pages: bool
     has_more_pages: bool
     items: list[int]
+    has_return_button: bool = True
+
+
+@dataclass(frozen=True)
+class LeaderboardRow:
+    user_id: int
+    value: str | int
+
+
+@dataclass(frozen=True)
+class Leaderboard:
+    chat_id: int
+    rows: list[LeaderboardRow]
 
 
 @dataclass(frozen=True)
 class Menu: ...
+
+
+class AnimeGenre(Enum):
+    RANDOM = 0
+    ACTION = 1
+    ADVENTURE = 2
+    COMEDY = 3
+    DRAMA = 4
+    FANTASY = 5
+    HORROR = 6
+    MYSTERY = 7
+    ROMANCE = 8
+    SCI_FI = 9
+    SLICE = 10
+    SPORTS = 11
+    THRILLER = 12
