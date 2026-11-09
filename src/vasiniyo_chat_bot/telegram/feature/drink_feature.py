@@ -1,24 +1,27 @@
-from vasiniyo_chat_bot.config.bot_settings_reader import CommandInfo
+from injector import inject
+
+from vasiniyo_chat_bot.config.dto import BotSettings
 from vasiniyo_chat_bot.module.drink.drink_controller import DrinkController
-from vasiniyo_chat_bot.module.help.command_key import CommandKey
+from vasiniyo_chat_bot.module.help.command import CommandKey
+from vasiniyo_chat_bot.telegram.bot_service import BotService
 from vasiniyo_chat_bot.telegram.feature.feature import Feature
 
 
+@inject
 class DrinkFeature(Feature):
     def __init__(
         self,
-        bot_username: str,
-        allowed_chats: list[str],
-        controller: DrinkController | None,
-        commands: dict[CommandKey, CommandInfo],
+        settings: BotSettings,
+        bot_service: BotService,
+        controller: DrinkController,
     ):
         self._controller = controller
         super().__init__(
-            bot_username,
-            allowed_chats,
+            settings,
+            bot_service,
             inline_handler=[
                 lambda ctx: (
-                    commands.get(CommandKey.DRINK_OR_NOT).name,
+                    settings.commands[CommandKey.DRINK_OR_NOT].name,
                     self._controller.advice_drink(ctx),
                 )
             ],

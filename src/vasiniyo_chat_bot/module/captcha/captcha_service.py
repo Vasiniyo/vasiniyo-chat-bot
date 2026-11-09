@@ -3,13 +3,16 @@ import logging
 import random
 import string
 
+from injector import inject
+
 from vasiniyo_chat_bot.module.captcha.captcha_repository import CaptchaRepository
 from vasiniyo_chat_bot.module.captcha.dto import Captcha
 from vasiniyo_chat_bot.module.captcha.dto import CaptchaUser
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
+@inject
 class CaptchaService:
     def __init__(
         self, captcha_properties: Captcha, captcha_repository: CaptchaRepository

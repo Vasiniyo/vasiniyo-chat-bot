@@ -1,17 +1,12 @@
-from dataclasses import dataclass
+from injector import inject
 
-from vasiniyo_chat_bot.module.anime.anime_payload_factory import AnimePayload
 from vasiniyo_chat_bot.module.anime.anime_response_factory import AnimeResponseFactory
 from vasiniyo_chat_bot.module.anime.anime_service import AnimeService
-from vasiniyo_chat_bot.module.dto import CallbackContext
+from vasiniyo_chat_bot.module.dto import InlineCallbackContext
 from vasiniyo_chat_bot.module.renderer import Renderer
 
 
-@dataclass(frozen=True)
-class AnimeCallbackContext(CallbackContext):
-    payload: AnimePayload
-
-
+@inject
 class AnimeController:
     def __init__(
         self,
@@ -26,8 +21,10 @@ class AnimeController:
     def handle_anime_command(self):
         return self._response_factory.genre_options()
 
-    def dispatch_anime_callback(self, ctx: AnimeCallbackContext):
+    def dispatch_anime_callback(self, ctx: InlineCallbackContext) -> None:
         payload = ctx.payload
+        if payload is None:
+            return
         if ctx.user_id != payload.user_id:
             response = self._response_factory.no_access()
             self._renderer.alert(response, ctx)

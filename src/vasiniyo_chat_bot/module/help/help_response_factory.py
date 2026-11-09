@@ -1,7 +1,7 @@
-from vasiniyo_chat_bot.config.bot_settings_reader import CommandInfo
 from vasiniyo_chat_bot.module.dto import BoldTemplate
 from vasiniyo_chat_bot.module.dto import ItalicTemplate
 from vasiniyo_chat_bot.module.dto import Response
+from vasiniyo_chat_bot.module.help.command import CommandInfo
 
 
 class HelpResponseFactory:
@@ -19,17 +19,16 @@ class HelpResponseFactory:
             for item in [ItalicTemplate(command.name), f" - {command.description}\n"]
         ]
         text = [
-            text_commands and BoldTemplate(f"Доступные команды:\n"),
+            BoldTemplate(f"Доступные команды:\n") if text_commands else "",
             *text_commands,
-            text_inlines and BoldTemplate("\nInline-команды:\n"),
+            BoldTemplate("\nInline-команды:\n") if text_inlines else "",
             *text_inlines,
         ]
         return Response(text_units=text)
 
     @staticmethod
     def send_unknown_command(help_command: CommandInfo | None = None):
-        text = (
-            f"🤯 Я такой команды не знаю! "
+        text = f"🤯 Я такой команды не знаю! " + (
             f"Посмотреть доступные можно при помощи {help_command.name}"
             if help_command
             else ""

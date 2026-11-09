@@ -1,20 +1,27 @@
+from vasiniyo_chat_bot.module.dto import InlineCodeTemplate
+from vasiniyo_chat_bot.module.dto import Leaderboard
 from vasiniyo_chat_bot.module.dto import Response
 from vasiniyo_chat_bot.module.dto import UserTemplate
-from vasiniyo_chat_bot.module.like.dto import Leaderboard
 from vasiniyo_chat_bot.module.like.dto import Like
 
 
 class LikeResponseFactory:
     @staticmethod
-    def like(like: Like, chat_id: int, to_user_id: int):
-        if not like.current_likes:
-            text = "🤯 Я не понимаю кому ставить лайк, отправь его ответом на сообщение что ли..."
-        else:
-            text = [
-                f"👍 Лайк засчитан!\nУ ",
-                UserTemplate(chat_id, to_user_id),
-                f" теперь {like.current_likes} лайков!",
-            ]
+    def like(like: Like, chat_id: int, to_user_id: int) -> Response:
+        text = [
+            f"👍 Лайк засчитан!\nУ ",
+            (
+                UserTemplate(chat_id, to_user_id)
+                if to_user_id
+                else InlineCodeTemplate("Неизвестный")
+            ),
+            f" теперь {like.current_likes} лайков!",
+        ]
+        return Response(text_units=text)
+
+    @staticmethod
+    def like_reply_required() -> Response:
+        text = "🤯 Я не понимаю кому ставить лайк, отправь его ответом на сообщение что ли..."
         return Response(text_units=text)
 
     @staticmethod

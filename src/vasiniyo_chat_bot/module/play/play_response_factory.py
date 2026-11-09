@@ -1,11 +1,13 @@
 import logging
 import random
 
+from injector import inject
+
 from vasiniyo_chat_bot.module.dto import BoldTemplate
 from vasiniyo_chat_bot.module.dto import ItalicTemplate
+from vasiniyo_chat_bot.module.dto import Leaderboard
 from vasiniyo_chat_bot.module.dto import Response
 from vasiniyo_chat_bot.module.dto import UserTemplate
-from vasiniyo_chat_bot.module.like.dto import Leaderboard
 from vasiniyo_chat_bot.module.play.dto import PlayCategory
 from vasiniyo_chat_bot.module.play.dto import PlayStatus
 from vasiniyo_chat_bot.module.play.dto import Winner
@@ -13,6 +15,7 @@ from vasiniyo_chat_bot.module.play.image_service import ImageService
 from vasiniyo_chat_bot.module.user_service import UserService
 
 
+@inject
 class PlayResponseFactory:
     _emoji_tiers: list[list[str]] = [
         ["😢", "😞", "😔", "😭", "💔", "😰", "😓", "😥", "😣", "😖", "😫", "😩", "😤"],
@@ -67,6 +70,11 @@ class PlayResponseFactory:
         except Exception as e:
             logging.exception(e)
             return Response(text_units=text_units)
+
+    @staticmethod
+    def winner_not_found():
+        text = "Я не смогла найти ни одного игрока, никто не победил..."
+        return Response(text_units=text)
 
     def _get_emoji_for_value(
         self, category: PlayCategory, value: int, force_top: bool = False

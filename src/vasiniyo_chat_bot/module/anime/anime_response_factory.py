@@ -1,9 +1,15 @@
+from injector import inject
+
 from vasiniyo_chat_bot.module.anime.dto import Anime
+from vasiniyo_chat_bot.module.anime.dto import AnimeGenreMenu
 from vasiniyo_chat_bot.module.dto import Response
-from vasiniyo_chat_bot.module.titles.dto import AnimeGenreMenu
 
 
+@inject
 class AnimeResponseFactory:
+    def __init__(self):
+        pass
+
     @staticmethod
     def link(anime: Anime):
         text = anime.link or "Я не могу вспомнить ни одно аниме..."

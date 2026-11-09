@@ -1,30 +1,35 @@
+from typing import Callable
+
+from injector import inject
 from telebot.types import Message
 
-from vasiniyo_chat_bot.config.bot_settings_reader import CommandInfo
-from vasiniyo_chat_bot.module.dto import UserContext
-from vasiniyo_chat_bot.module.help.command_key import CommandKey
+from vasiniyo_chat_bot.config.dto import BotSettings
+from vasiniyo_chat_bot.module.dto import MessageContext
+from vasiniyo_chat_bot.module.help.command import CommandInfo
+from vasiniyo_chat_bot.module.help.command import CommandKey
 from vasiniyo_chat_bot.module.help.help_controller import HelpController
+from vasiniyo_chat_bot.telegram.bot_service import BotService
 from vasiniyo_chat_bot.telegram.feature.feature import Feature
 from vasiniyo_chat_bot.telegram.filter import Filter
 from vasiniyo_chat_bot.telegram.handler.message_handler import MessageHandler
 
 
+@inject
 class HelpFeature(Feature):
     def __init__(
-        self,
-        bot_username: str,
-        allowed_chats: list[str],
-        controller: HelpController | None,
-        commands: dict[CommandKey, CommandInfo],
+        self, settings: BotSettings, bot_service: BotService, controller: HelpController
     ):
-        all_commands = self._get_all_commands(controller, commands)
+        all_commands = self._get_all_commands(controller, settings.commands)
         command_names = {module.name for module, _ in all_commands.values()}
         message_handlers = self._message_handlers(
-            allowed_chats, controller, bot_username, command_names
+            settings.allowed_chats,
+            controller,
+            bot_service.get_me().username,
+            command_names,
         )
         super().__init__(
-            bot_username,
-            allowed_chats,
+            settings,
+            bot_service,
             message_handlers=message_handlers,
             all_commands=all_commands,
         )
@@ -32,11 +37,13 @@ class HelpFeature(Feature):
     @staticmethod
     def _get_all_commands(
         controller: HelpController, commands: dict[CommandKey, CommandInfo]
-    ):
-        def _help_handler(ctx: UserContext):
+    ) -> dict[CommandKey, tuple[CommandInfo, Callable[[MessageContext], None]]]:
+        def _help_handler(ctx: MessageContext):
             return controller.show_help(ctx, list(commands.values()))
 
-        return {CommandKey.HELP: (commands.get(CommandKey.HELP), _help_handler)}
+        if info := commands.get(CommandKey.HELP):
+            return {CommandKey.HELP: (info, _help_handler)}
+        return {}
 
     def _message_handlers(
         self, allowed_chats, controller, bot_username: str, command_names: set[str]

@@ -1,9 +1,12 @@
 import random
 
+from injector import inject
+
 from vasiniyo_chat_bot.module.daily_size.dto import DailySizeResult
 from vasiniyo_chat_bot.module.daily_size.dto import DailySizeSettings
 
 
+@inject
 class DailySizeService:
     def __init__(self, settings: DailySizeSettings):
         self._settings = settings

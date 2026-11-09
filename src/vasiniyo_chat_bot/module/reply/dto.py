@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from enum import Enum
 from enum import auto
 
+from injector import inject
+
 
 class MessageType(Enum):
     TEXT = auto()
@@ -27,12 +29,14 @@ class StickerTrigger(Trigger): ...
 class TextTrigger(Trigger): ...
 
 
+@inject
 @dataclass(frozen=True)
 class TriggerReplies:
     text_replies: list[TextTrigger]
     sticker_replies: list[StickerTrigger]
 
 
+@inject
 @dataclass
 class LongMessage:
     responses: list[str]

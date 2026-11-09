@@ -3,6 +3,8 @@ from enum import Enum
 from enum import auto
 from pathlib import Path
 
+from injector import inject
+
 
 class WinValue(Enum):
     MAX = auto()
@@ -10,6 +12,7 @@ class WinValue(Enum):
     EXACT = auto()
 
 
+@inject
 @dataclass(frozen=True)
 class PlayCategory:
     name: str
@@ -27,6 +30,7 @@ class Picture:
     avatar_position_y: int
 
 
+@inject
 @dataclass
 class Event:
     default_winner_avatar: Path

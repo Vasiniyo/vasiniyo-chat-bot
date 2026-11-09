@@ -4,9 +4,11 @@ from threading import Event
 from threading import Thread
 import time
 from typing import Callable
+from typing import NotRequired
+from typing import TypedDict
 import uuid
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 EVENTS = {}
 TICK_JOB_RUNNING = False
@@ -14,15 +16,14 @@ TICK_THREAD = None
 TICK_THREAD_STOP = Event()
 
 
+class ConditionalFuncs(TypedDict):
+    on_start: NotRequired[Callable[[], None]]
+    on_success: NotRequired[Callable[[], None]]
+    on_cancel: NotRequired[Callable[[], None]]
+
+
 def add_task(
-    timestamps,
-    default: Callable[[], None],
-    conditional_funcs=dict[
-        "on_start" : Callable[[], None],
-        "on_success" : Callable[[], None],
-        "on_cancel" : Callable[[], None],
-        str : Callable[[], None],
-    ],
+    timestamps, default: Callable[[], None], conditional_funcs: ConditionalFuncs
 ):
     """
     Queue a sequence of timestamped actions to be executed over time.
@@ -86,20 +87,20 @@ def cancel_task(key, silently=False):
     if key in EVENTS:
         EVENTS[key]["cancelled"] = True
         cond = EVENTS[key].get("conditional_funcs", {})
-        logger.debug("⛔ Canceling task", extra={"task": key})
+        _logger.debug("⛔ Canceling task", extra={"task": key})
         if silently:
             return
 
         if "on_cancel" in cond:
             func = cond["on_cancel"]
-            logger.debug(
+            _logger.debug(
                 "Executing on_cancel",
                 extra={"func": getattr(func, "__name__", repr(func))},
             )
             try:
                 func()
             except Exception:
-                logger.exception("on_cancel hook failed", extra={"task": key})
+                _logger.exception("on_cancel hook failed", extra={"task": key})
 
 
 def tick():
@@ -121,7 +122,7 @@ def tick():
             try:
                 next_event["action"]()
             except:
-                logger.exception("Event failed", extra={"task": key})
+                _logger.exception("Event failed", extra={"task": key})
 
         event["offset"] += 1
 
@@ -130,7 +131,7 @@ def tick():
 
     for key in remove_keys:
         EVENTS.pop(key, None)
-        logger.debug("Removed entire event", extra={"task": key})
+        _logger.debug("Removed entire event", extra={"task": key})
 
     if not EVENTS:
         stop_ticking()
@@ -143,7 +144,7 @@ def start_ticking_if_needed():
     if not EVENTS:
         return
 
-    logger.debug("Started ticking thread for event_queue")
+    _logger.debug("Started ticking thread for event_queue")
     TICK_JOB_RUNNING = True
     TICK_THREAD_STOP.clear()
 
@@ -160,7 +161,7 @@ def stop_ticking():
     global TICK_JOB_RUNNING
     TICK_THREAD_STOP.set()
     TICK_JOB_RUNNING = False
-    logger.debug("Stopped ticking thread since no events remain")
+    _logger.debug("Stopped ticking thread since no events remain")
 
 
 def is_thread_running():

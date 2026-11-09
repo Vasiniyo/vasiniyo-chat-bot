@@ -19,7 +19,8 @@ def log_tick_results(result, current_tick):
 class TestEventQueueSync(unittest.TestCase):
 
     # ---------- helpers --------------------------------------------------
-    def _drive_ticks(self, total, current_tick):
+    @staticmethod
+    def _drive_ticks(total, current_tick):
         for _ in range(total + 1):
             tick()
             current_tick["i"] += 1
