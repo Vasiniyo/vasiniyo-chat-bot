@@ -50,6 +50,7 @@ class TitlesBagRepository(BaseRepository):
             session, entity.chat_id, entity.user_id
         ):
             current_active.is_inventory = True
+            session.flush()
         entity.is_inventory = False
 
     @staticmethod
@@ -61,6 +62,7 @@ class TitlesBagRepository(BaseRepository):
         )
         if titles:
             titles[0].is_inventory = False
+            session.flush()
         entity.is_inventory = True
 
     @staticmethod
